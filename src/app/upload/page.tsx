@@ -21,6 +21,19 @@ function clamp01(n: number) {
   return Math.max(0, Math.min(100, n));
 }
 
+function getProficiencyColor(level: string) {
+  switch (level) {
+    case "Expert":
+      return { bg: "#e8f5e9", border: "#81c784", text: "#2e7d32" };
+    case "Intermediate":
+      return { bg: "#fff8e1", border: "#ffd54f", text: "#f57f17" };
+    case "Beginner":
+      return { bg: "#e3f2fd", border: "#64b5f6", text: "#1565c0" };
+    default:
+      return { bg: "#f5f5f5", border: "#bdbdbd", text: "#616161" };
+  }
+}
+
 export default function UploadPage() {
   const [githubUsername, setGithubUsername] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -178,20 +191,36 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div style={{ minWidth: 220 }}>
-              <div style={{ fontWeight: 900, marginBottom: 8 }}>Legend</div>
-              <div style={{ display: "grid", gap: 8 }}>
+            <div style={{ minWidth: 300 }}>
+              <div style={{ fontWeight: 900, marginBottom: 8 }}>Proof Status</div>
+              <div style={{ display: "grid", gap: 6 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 14, height: 14, borderRadius: 4, background: "#ffe1e1", border: "1px solid #ffb3b3" }} />
-                  <span style={{ fontWeight: 700, color: "#444" }}>Red: Needs more attention</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#ffe1e1", border: "1px solid #ffb3b3" }} />
+                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Needs attention</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 14, height: 14, borderRadius: 4, background: "#fff3cf", border: "1px solid #ffd27a" }} />
-                  <span style={{ fontWeight: 700, color: "#444" }}>Yellow: Medium proof</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#fff3cf", border: "1px solid #ffd27a" }} />
+                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Medium proof</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 14, height: 14, borderRadius: 4, background: "#e9ffef", border: "1px solid #9fe7b0" }} />
-                  <span style={{ fontWeight: 700, color: "#444" }}>Green: Good proof</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#e9ffef", border: "1px solid #9fe7b0" }} />
+                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Good proof</span>
+                </div>
+              </div>
+              
+              <div style={{ fontWeight: 900, marginTop: 14, marginBottom: 8 }}>Proficiency Levels</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#e8f5e9", border: "1px solid #81c784" }} />
+                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Expert</span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#fff8e1", border: "1px solid #ffd54f" }} />
+                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Intermediate</span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#e3f2fd", border: "1px solid #64b5f6" }} />
+                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Beginner</span>
                 </div>
               </div>
             </div>
@@ -204,7 +233,7 @@ export default function UploadPage() {
             </div>
 
             <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 12 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
                 <thead>
                   <tr style={{ background: "#fafafa" }}>
                     <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
@@ -212,6 +241,9 @@ export default function UploadPage() {
                     </th>
                     <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
                       Proof %
+                    </th>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                      Proficiency
                     </th>
                     <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
                       Status
@@ -249,6 +281,28 @@ export default function UploadPage() {
                               </div>
                               <div style={{ fontWeight: 900 }}>{score}%</div>
                             </div>
+                          </td>
+
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
+                            {row.proficiency && (
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "6px 10px",
+                                  borderRadius: 999,
+                                  background: getProficiencyColor(row.proficiency).bg,
+                                  border: `1px solid ${getProficiencyColor(row.proficiency).border}`,
+                                  color: getProficiencyColor(row.proficiency).text,
+                                  fontWeight: 900,
+                                  fontSize: 12,
+                                }}
+                              >
+                                {row.proficiency}
+                              </span>
+                            )}
+                            {!row.proficiency && (
+                              <span style={{ color: "#999", fontSize: 12 }}>—</span>
+                            )}
                           </td>
 
                           <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
