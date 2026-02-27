@@ -8,6 +8,19 @@ declare global {
   }
 }
 
+function getColor(score: number) {
+  if (score < 25)
+    return { bg: "#fff1f1", border: "#ffb3b3", text: "#b00020", label: "Needs attention" }; // red
+  if (score < 60)
+    return { bg: "#fff8e1", border: "#ffd27a", text: "#8a5a00", label: "Medium" }; // yellow
+  return { bg: "#ecfff1", border: "#9fe7b0", text: "#0b6b2b", label: "Good" }; // green
+}
+
+function clamp01(n: number) {
+  if (Number.isNaN(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+}
+
 export default function UploadPage() {
   const [githubUsername, setGithubUsername] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -143,9 +156,230 @@ export default function UploadPage() {
       </div>
 
       {result && (
-        <div style={{ marginTop: 28, padding: 16, border: "1px solid #eee", borderRadius: 12 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>Overall Skill Reality Score</div>
-          <div style={{ fontSize: 44, fontWeight: 900, marginTop: 6 }}>{result.overallScore}%</div>
+        <div
+          style={{
+            marginTop: 28,
+            padding: 18,
+            border: "1px solid #eee",
+            borderRadius: 14,
+            background: "white",
+          }}
+        >
+          {/* Top summary */}
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900 }}>Overall Skill Reality Score</div>
+              <div style={{ fontSize: 44, fontWeight: 950, marginTop: 6 }}>
+                {clamp01(result.overallScore)}%
+              </div>
+              <div style={{ marginTop: 6, color: "#555", fontWeight: 700 }}>
+                Analyzed <span style={{ color: "#000" }}>{result.reposAnalyzed ?? "—"}</span> repos for{" "}
+                <span style={{ color: "#000" }}>{result.githubUsername ?? githubUsername}</span>
+              </div>
+            </div>
+
+            <div style={{ minWidth: 220 }}>
+              <div style={{ fontWeight: 900, marginBottom: 8 }}>Legend</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 4, background: "#ffe1e1", border: "1px solid #ffb3b3" }} />
+                  <span style={{ fontWeight: 700, color: "#444" }}>Red: Needs more attention</span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 4, background: "#fff3cf", border: "1px solid #ffd27a" }} />
+                  <span style={{ fontWeight: 700, color: "#444" }}>Yellow: Medium proof</span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ width: 14, height: 14, borderRadius: 4, background: "#e9ffef", border: "1px solid #9fe7b0" }} />
+                  <span style={{ fontWeight: 700, color: "#444" }}>Green: Good proof</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Skill Table */}
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10 }}>
+              Skill Proof Table
+            </div>
+
+            <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 12 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
+                <thead>
+                  <tr style={{ background: "#fafafa" }}>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                      Skill
+                    </th>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                      Proof %
+                    </th>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {(result.breakdown ?? [])
+                    .slice()
+                    .sort((a: any, b: any) => (b.score ?? 0) - (a.score ?? 0))
+                    .map((row: any) => {
+                      const score = clamp01(Number(row.score ?? 0));
+                      const c = getColor(score);
+
+                      return (
+                        <tr key={row.skill}>
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1", fontWeight: 900 }}>
+                            {row.skill}
+                          </td>
+
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <div
+                                style={{
+                                  height: 10,
+                                  width: 160,
+                                  borderRadius: 999,
+                                  background: "#eee",
+                                  overflow: "hidden",
+                                  border: "1px solid #e5e5e5",
+                                }}
+                              >
+                                <div style={{ height: "100%", width: `${score}%`, background: c.text }} />
+                              </div>
+                              <div style={{ fontWeight: 900 }}>{score}%</div>
+                            </div>
+                          </td>
+
+                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
+                            <span
+                              style={{
+                                display: "inline-block",
+                                padding: "6px 10px",
+                                borderRadius: 999,
+                                background: c.bg,
+                                border: `1px solid ${c.border}`,
+                                color: c.text,
+                                fontWeight: 900,
+                                fontSize: 12,
+                              }}
+                            >
+                              {c.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Present vs Missing */}
+          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+              <div style={{ fontWeight: 950 }}>✅ Skills present (proven)</div>
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(result.breakdown ?? [])
+                  .filter((x: any) => clamp01(Number(x.score ?? 0)) >= 25)
+                  .sort((a: any, b: any) => (b.score ?? 0) - (a.score ?? 0))
+                  .map((x: any) => {
+                    const score = clamp01(Number(x.score ?? 0));
+                    const c = getColor(score);
+                    return (
+                      <span
+                        key={x.skill}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          background: c.bg,
+                          border: `1px solid ${c.border}`,
+                          color: c.text,
+                          fontWeight: 900,
+                          fontSize: 12,
+                        }}
+                      >
+                        {x.skill} · {score}%
+                      </span>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+              <div style={{ fontWeight: 950 }}>⚠️ Skills not present (missing proof)</div>
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(result.breakdown ?? [])
+                  .filter((x: any) => clamp01(Number(x.score ?? 0)) < 25)
+                  .sort((a: any, b: any) => (a.score ?? 0) - (b.score ?? 0))
+                  .map((x: any) => {
+                    const score = clamp01(Number(x.score ?? 0));
+                    const c = getColor(score);
+                    return (
+                      <span
+                        key={x.skill}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          background: c.bg,
+                          border: `1px solid ${c.border}`,
+                          color: c.text,
+                          fontWeight: 900,
+                          fontSize: 12,
+                        }}
+                      >
+                        {x.skill} · {score}%
+                      </span>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+
+          {/* 4-line feedback summary */}
+          <div
+            style={{
+              marginTop: 16,
+              border: "1px solid #eee",
+              borderRadius: 12,
+              padding: 14,
+              background: "#fafafa",
+            }}
+          >
+            {(() => {
+              const breakdown = result.breakdown ?? [];
+              const proven = breakdown.filter((x: any) => clamp01(Number(x.score ?? 0)) >= 60);
+              const medium = breakdown.filter((x: any) => {
+                const s = clamp01(Number(x.score ?? 0));
+                return s >= 25 && s < 60;
+              });
+              const weak = breakdown.filter((x: any) => clamp01(Number(x.score ?? 0)) < 25);
+
+              const topMissing = weak
+                .slice()
+                .sort((a: any, b: any) => (a.score ?? 0) - (b.score ?? 0))
+                .slice(0, 4)
+                .map((x: any) => x.skill);
+
+              return (
+                <div style={{ color: "#333", lineHeight: 1.7 }}>
+                  <div style={{ fontWeight: 950 }}>Quick feedback</div>
+                  <div>
+                    • Strong proof: <b>{proven.length}</b> skills (green) are well-supported by your repos.
+                  </div>
+                  <div>
+                    • Moderate proof: <b>{medium.length}</b> skills (yellow) show some evidence — add stronger examples or clearer repo descriptions.
+                  </div>
+                  <div>
+                    • Needs attention: <b>{weak.length}</b> skills (red) have low/no proof — prioritize building or showcasing them in GitHub.
+                  </div>
+                  <div>
+                    • Next step: pick 1–2 red skills (e.g., <b>{topMissing.join(", ") || "—"}</b>) and create a small repo/demo that clearly uses them.
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
     </div>

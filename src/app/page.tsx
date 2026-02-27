@@ -22,10 +22,20 @@ export default function Home() {
           boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
         }}
       >
-        <h1 style={{ fontSize: 36, fontWeight: 900, margin: 0 }}>ProofMap</h1>
+        <h1 style={{ fontSize: 36, fontWeight: 900, margin: 0 }}>
+          ProofMap
+        </h1>
 
-        <p style={{ marginTop: 12, fontSize: 16, color: "#444", lineHeight: 1.6 }}>
-          Compare your resume skills with your GitHub projects and get a skill reality score.
+        <p
+          style={{
+            marginTop: 12,
+            fontSize: 16,
+            color: "#444",
+            lineHeight: 1.6,
+          }}
+        >
+          Compare your resume skills with your GitHub projects and get a
+          skill reality score.
         </p>
 
         <div style={{ marginTop: 22 }}>
@@ -44,10 +54,6 @@ export default function Home() {
               Go to Upload Page
             </button>
           </Link>
-        </div>
-
-        <div style={{ marginTop: 22, fontSize: 13, color: "#777" }}>
-          Tip: Add a GitHub token in <code>.env.local</code> to avoid rate limits.
         </div>
       </div>
     </main>
