@@ -1,36 +1,160 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ProofMap
+
+**ProofMap** is a resume skill validation tool that cross-references the skills listed on your resume against your actual GitHub repositories. It gives you a skill reality score, identifies proof gaps, and generates actionable goals to help you back up your claims with real code.
+
+---
+
+## How It Works
+
+1. **Upload your resume** — Upload a PDF resume and enter your GitHub username.
+2. **Deep repository scan** — The app scans your public GitHub repos: code content, file structures, dependencies, and language usage.
+3. **Get your score** — Each claimed skill is scored and assigned a proficiency level (Beginner / Intermediate / Expert) along with a status (Good / Medium / Needs attention).
+4. **Set goals for gaps** — Select missing or low-scoring skills to receive tailored project ideas and integration suggestions to build GitHub proof.
+
+---
+
+## Features
+
+- PDF resume parsing via PDF.js (loaded from CDN, zero bundle overhead)
+- GitHub repository analysis using the GitHub REST API
+- Detects 25+ skills across languages, frameworks, databases, and DevOps tools
+- Hybrid scoring: GitHub Linguist language stats + code pattern recognition
+- Proficiency detection based on advanced API/pattern usage (Beginner / Intermediate / Expert)
+- Parallel repo processing with early termination for performance
+- Smart file prioritization (configs and entry points first)
+- Excludes generated, minified, and bundled files from analysis
+- Collapsible per-skill project breakdown in results
+- Animated UI with floating orbs and parallax scrolling
+
+### Tracked Skills
+
+| Category | Skills |
+|---|---|
+| Languages | Java, Python, JavaScript, TypeScript, C++ |
+| Frontend | React, React Native, Next.js, HTML, CSS, Tailwind |
+| Backend | Node.js, Express, Spring Boot, FastAPI |
+| APIs & Architecture | REST API, Microservices |
+| DevOps & Cloud | AWS, Docker, Jenkins, CI/CD, GitHub Actions |
+| Databases | PostgreSQL, MySQL, MongoDB |
+| Quality | Testing, Concurrency |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| UI | React 19, Tailwind CSS v4 |
+| GitHub API | @octokit/rest |
+| PDF Parsing | PDF.js (CDN) |
+| Charts | Recharts |
+| Compiler | React Compiler (babel-plugin-react-compiler) |
+
+---
+
+## Project Structure
+
+```
+src/
+  app/
+    page.tsx              # Landing page (hero, features, benefits)
+    layout.tsx            # Root layout
+    globals.css           # Global styles
+    upload/
+      page.tsx            # Upload form + results UI
+    api/
+      scan/
+        route.ts          # Backend API: GitHub scan + skill scoring
+  components/
+    FloatingOrbs.tsx      # Animated background orbs
+    ParallaxSection.tsx   # Parallax scroll wrapper
+  lib/
+    suggestions.ts        # Goal generation + integration suggestions
+```
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- A GitHub Personal Access Token (recommended to avoid rate limiting)
+
+### Installation
+
+```bash
+git clone https://github.com/your-username/proofmap.git
+cd proofmap
+npm install
+```
+
+### Environment Variables
+
+Create a `.env.local` file in the project root:
+
+```env
+GITHUB_TOKEN=your_github_personal_access_token
+```
+
+### Running Locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Build for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### `POST /api/scan`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Scans a GitHub user's repositories and validates skills extracted from resume text.
 
-## Deploy on Vercel
+**Request body:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```json
+{
+  "githubUsername": "octocat",
+  "resumeText": "Skills: React, TypeScript, Docker, PostgreSQL..."
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Response:**
+
+```json
+{
+  "overallScore": 72,
+  "skills": [
+    {
+      "skill": "React",
+      "score": 85,
+      "status": "Good",
+      "proficiency": "Intermediate",
+      "repos": ["my-app", "portfolio"]
+    }
+  ],
+  "missingSkills": ["Docker", "CI/CD"]
+}
+```
+
+---
+
+## Deployment
+
+Deploy instantly on [Vercel](https://vercel.com/new):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+
+Set the `GITHUB_TOKEN` environment variable in your Vercel project settings to avoid GitHub API rate limits.

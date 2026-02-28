@@ -616,11 +616,11 @@ export default function UploadPage() {
                           <div style={{ marginTop: 6 }}>
                             {p.candidateExists ? (
                               <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', fontWeight: 900, fontSize: 13 }}>
-                                this skill can be used in your GitHub
+                                this skill can be used in your GitHub Projects
                               </div>
                             ) : (
                               <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontWeight: 900, fontSize: 13 }}>
-                                this skill cannot be used in Github. But I can give you additional project suggestions.
+                                this skill cannot be used in Github Projects. But I can give you additional project suggestions.
                               </div>
                             )}
                           </div>
