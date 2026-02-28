@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import ParallaxSection from "@/components/ParallaxSection";
+import FloatingOrbs from "@/components/FloatingOrbs";
 
 declare global {
   interface Window {
@@ -10,10 +13,10 @@ declare global {
 
 function getColor(score: number) {
   if (score < 25)
-    return { bg: "#fff1f1", border: "#ffb3b3", text: "#b00020", label: "Needs attention" }; // red
+    return { bg: "rgba(239, 68, 68, 0.15)", border: "rgba(239, 68, 68, 0.4)", text: "#fca5a5", label: "Needs attention" };
   if (score < 60)
-    return { bg: "#fff8e1", border: "#ffd27a", text: "#8a5a00", label: "Medium" }; // yellow
-  return { bg: "#ecfff1", border: "#9fe7b0", text: "#0b6b2b", label: "Good" }; // green
+    return { bg: "rgba(251, 191, 36, 0.15)", border: "rgba(251, 191, 36, 0.4)", text: "#fcd34d", label: "Medium" };
+  return { bg: "rgba(34, 197, 94, 0.15)", border: "rgba(34, 197, 94, 0.4)", text: "#86efac", label: "Good" };
 }
 
 function clamp01(n: number) {
@@ -24,13 +27,13 @@ function clamp01(n: number) {
 function getProficiencyColor(level: string) {
   switch (level) {
     case "Expert":
-      return { bg: "#e8f5e9", border: "#81c784", text: "#2e7d32" };
+      return { bg: "rgba(168, 85, 247, 0.2)", border: "rgba(168, 85, 247, 0.5)", text: "#c084fc" };
     case "Intermediate":
-      return { bg: "#fff8e1", border: "#ffd54f", text: "#f57f17" };
+      return { bg: "rgba(139, 92, 246, 0.15)", border: "rgba(139, 92, 246, 0.4)", text: "#a78bfa" };
     case "Beginner":
-      return { bg: "#e3f2fd", border: "#64b5f6", text: "#1565c0" };
+      return { bg: "rgba(124, 58, 237, 0.1)", border: "rgba(124, 58, 237, 0.3)", text: "#8b5cf6" };
     default:
-      return { bg: "#f5f5f5", border: "#bdbdbd", text: "#616161" };
+      return { bg: "rgba(139, 92, 246, 0.05)", border: "rgba(139, 92, 246, 0.2)", text: "#9ca3af" };
   }
 }
 
@@ -164,119 +167,257 @@ export default function UploadPage() {
   }
 
   return (
-    <div style={{ maxWidth: 980, margin: "40px auto", padding: 20 }}>
-      <h1 style={{ fontSize: 30, fontWeight: 900, marginBottom: 10 }}>ProofMap — Resume ↔ GitHub Skill Proof</h1>
-      <div style={{ color: '#666', marginBottom: 18 }}>Upload your resume and GitHub username. Select missing skills to generate a concise plan and project ideas.</div>
+    <>
+      <FloatingOrbs />
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {/* Header */}
+        <header style={{
+          padding: "20px 24px",
+          borderBottom: "1px solid rgba(139, 92, 246, 0.15)",
+        }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Link href="/">
+              <div style={{ fontSize: 24, fontWeight: 900, background: "linear-gradient(135deg, #a78bfa, #c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", cursor: "pointer" }}>
+                ProofMap
+              </div>
+            </Link>
+            <Link href="/">
+              <button style={{
+                padding: "10px 20px",
+                borderRadius: 8,
+                border: "1px solid rgba(139, 92, 246, 0.3)",
+                background: "transparent",
+                color: "#e6eef8",
+                fontWeight: 700,
+                cursor: "pointer",
+                fontSize: 14,
+              }}>
+                ← Back to Home
+              </button>
+            </Link>
+          </div>
+        </header>
 
-      <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-        <label>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>GitHub username</div>
-          <input
-            value={githubUsername}
-            onChange={(e) => setGithubUsername(e.target.value)}
-            placeholder="e.g. snehagrian"
-            style={{ width: "100%", padding: 10, border: "1px solid #ccc", borderRadius: 8 }}
-          />
-        </label>
+        <div style={{ maxWidth: 1000, margin: "60px auto", padding: "0 24px" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <h1 style={{ 
+              fontSize: 42, 
+              fontWeight: 900, 
+              marginBottom: 16,
+              background: "linear-gradient(135deg, #a78bfa, #c084fc)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}>Resume to GitHub Validator</h1>
+            <p style={{ fontSize: 18, color: 'rgba(230, 238, 248, 0.7)', maxWidth: 600, margin: "0 auto" }}>
+              Upload your resume and connect your GitHub to see how your claimed skills match your actual code
+            </p>
+          </div>
 
-        <label>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Upload resume (PDF)</div>
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-          />
-          {file && <div style={{ marginTop: 6, color: "#444" }}>Selected: {file.name}</div>}
-        </label>
+          {/* Upload Form Card */}
+          <div className="pm-card" style={{ padding: 40, marginBottom: 32 }}>
+            <div style={{ display: "grid", gap: 24 }}>
+              <div>
+                <label>
+                  <div style={{ fontWeight: 700, marginBottom: 10, color: "#e6eef8", fontSize: 15 }}>
+                    <span style={{ color: "#a78bfa" }}>1.</span> GitHub Username
+                  </div>
+                  <input
+                    value={githubUsername}
+                    onChange={(e) => setGithubUsername(e.target.value)}
+                    placeholder="e.g., octocat"
+                    style={{ 
+                      width: "100%", 
+                      padding: "14px 18px", 
+                      border: "2px solid rgba(139, 92, 246, 0.3)", 
+                      borderRadius: 12,
+                      background: "rgba(139, 92, 246, 0.05)",
+                      color: "#e6eef8",
+                      fontSize: 16,
+                      fontWeight: 500,
+                      transition: "all 0.3s ease",
+                      outline: "none",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(139, 92, 246, 0.6)";
+                      e.currentTarget.style.background = "rgba(139, 92, 246, 0.08)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "rgba(139, 92, 246, 0.3)";
+                      e.currentTarget.style.background = "rgba(139, 92, 246, 0.05)";
+                    }}
+                  />
+                </label>
+              </div>
 
-        <button
-          onClick={onScan}
-          disabled={loading}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "none",
-            background: "black",
-            color: "white",
-            fontWeight: 800,
-            cursor: "pointer",
-            width: 170,
-          }}
-        >
-          {loading ? "Scanning..." : "Scan Resume"}
-        </button>
+              <div>
+                <label>
+                  <div style={{ fontWeight: 700, marginBottom: 10, color: "#e6eef8", fontSize: 15 }}>
+                    <span style={{ color: "#a78bfa" }}>2.</span> Resume PDF
+                  </div>
+                  <div style={{ 
+                    position: "relative",
+                    border: "2px dashed rgba(139, 92, 246, 0.3)",
+                    borderRadius: 12,
+                    padding: 32,
+                    textAlign: "center",
+                    background: "rgba(139, 92, 246, 0.03)",
+                    transition: "all 0.3s ease",
+                  }}>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      style={{ 
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: "100%",
+                        opacity: 0,
+                        cursor: "pointer",
+                      }}
+                    />
+                    {!file ? (
+                      <div>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
+                        <div style={{ color: "#e6eef8", fontWeight: 600, marginBottom: 4 }}>
+                          Click to upload or drag and drop
+                        </div>
+                        <div style={{ fontSize: 14, color: "rgba(230, 238, 248, 0.5)" }}>
+                          PDF file only
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
+                        <div style={{ color: "#a78bfa", fontWeight: 700, marginBottom: 4 }}>
+                          {file.name}
+                        </div>
+                        <div style={{ fontSize: 14, color: "rgba(230, 238, 248, 0.5)" }}>
+                          Click to change file
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
 
-        {error && <div style={{ color: "crimson", fontWeight: 700 }}>{error}</div>}
-      </div>
+              <button
+                onClick={onScan}
+                disabled={loading}
+                className="pm-btn"
+                style={{
+                  padding: "16px 32px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: loading ? "rgba(139, 92, 246, 0.5)" : "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                  color: "white",
+                  fontWeight: 800,
+                  fontSize: 18,
+                  cursor: loading ? "not-allowed" : "pointer",
+                  boxShadow: loading ? "none" : "0 8px 20px rgba(139, 92, 246, 0.4)",
+                  transition: "all 0.3s ease",
+                }}
+              >
+                {loading ? "🔍 Analyzing..." : "🚀 Analyze My Skills"}
+              </button>
+
+              {error && (
+                <div style={{ 
+                  color: "#fca5a5", 
+                  fontWeight: 600, 
+                  padding: 16, 
+                  background: "rgba(239, 68, 68, 0.1)", 
+                  borderRadius: 12, 
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                }}>
+                  <span style={{ fontSize: 20 }}>⚠️</span>
+                  <span>{error}</span>
+                </div>
+              )}
+            </div>
+          </div>
 
       {result && (
-        <div className="pm-card" style={{ marginTop: 28, padding: 20 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <ParallaxSection speed={0.2}>
+        <div className="pm-card" style={{ marginTop: 28, padding: 20 }}>          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 900 }}>Overall Skill Reality Score</div>
-              <div style={{ fontSize: 44, fontWeight: 950, marginTop: 6 }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#e6eef8" }}>Overall Skill Reality Score</div>
+              <div style={{ 
+                fontSize: 44, 
+                fontWeight: 950, 
+                marginTop: 6,
+                background: "linear-gradient(135deg, #a78bfa, #c084fc)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}>
                 {clamp01(result.overallScore)}%
               </div>
-              <div style={{ marginTop: 6, color: "#555", fontWeight: 700 }}>
-                Analyzed <span style={{ color: "#000" }}>{result.reposAnalyzed ?? "—"}</span> repos for{" "}
-                <span style={{ color: "#000" }}>{result.githubUsername ?? githubUsername}</span>
+              <div style={{ marginTop: 6, color: "rgba(230, 238, 248, 0.7)", fontWeight: 700 }}>
+                Analyzed <span style={{ color: "#a78bfa" }}>{result.reposAnalyzed ?? "—"}</span> repos for{" "}
+                <span style={{ color: "#a78bfa" }}>{result.githubUsername ?? githubUsername}</span>
               </div>
             </div>
 
             <div style={{ minWidth: 300 }}>
-              <div style={{ fontWeight: 900, marginBottom: 8 }}>Proof Status</div>
+              <div style={{ fontWeight: 900, marginBottom: 8, color: "#e6eef8" }}>Proof Status</div>
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#ffe1e1", border: "1px solid #ffb3b3" }} />
-                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Needs attention</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(239, 68, 68, 0.15)", border: "1px solid rgba(239, 68, 68, 0.4)" }} />
+                  <span style={{ fontWeight: 700, color: "rgba(230, 238, 248, 0.8)", fontSize: 13 }}>Needs attention</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#fff3cf", border: "1px solid #ffd27a" }} />
-                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Medium proof</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(251, 191, 36, 0.15)", border: "1px solid rgba(251, 191, 36, 0.4)" }} />
+                  <span style={{ fontWeight: 700, color: "rgba(230, 238, 248, 0.8)", fontSize: 13 }}>Medium proof</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#e9ffef", border: "1px solid #9fe7b0" }} />
-                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Good proof</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.4)" }} />
+                  <span style={{ fontWeight: 700, color: "rgba(230, 238, 248, 0.8)", fontSize: 13 }}>Good proof</span>
                 </div>
               </div>
               
-              <div style={{ fontWeight: 900, marginTop: 14, marginBottom: 8 }}>Proficiency Levels</div>
+              <div style={{ fontWeight: 900, marginTop: 14, marginBottom: 8, color: "#e6eef8" }}>Proficiency Levels</div>
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#e8f5e9", border: "1px solid #81c784" }} />
-                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Expert</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(168, 85, 247, 0.2)", border: "1px solid rgba(168, 85, 247, 0.5)" }} />
+                  <span style={{ fontWeight: 700, color: "rgba(230, 238, 248, 0.8)", fontSize: 13 }}>Expert</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#fff8e1", border: "1px solid #ffd54f" }} />
-                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Intermediate</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(139, 92, 246, 0.15)", border: "1px solid rgba(139, 92, 246, 0.4)" }} />
+                  <span style={{ fontWeight: 700, color: "rgba(230, 238, 248, 0.8)", fontSize: 13 }}>Intermediate</span>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "#e3f2fd", border: "1px solid #64b5f6" }} />
-                  <span style={{ fontWeight: 700, color: "#444", fontSize: 13 }}>Beginner</span>
+                  <span style={{ width: 12, height: 12, borderRadius: 4, background: "rgba(124, 58, 237, 0.1)", border: "1px solid rgba(124, 58, 237, 0.3)" }} />
+                  <span style={{ fontWeight: 700, color: "rgba(230, 238, 248, 0.8)", fontSize: 13 }}>Beginner</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div style={{ marginTop: 18 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10, color: "#e6eef8" }}>
               Skill Proof Table
             </div>
 
-            <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 12 }}>
+            <div style={{ overflowX: "auto", border: "1px solid rgba(139, 92, 246, 0.2)", borderRadius: 12, background: "rgba(139, 92, 246, 0.03)" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
                 <thead>
-                  <tr style={{ background: "#fafafa" }}>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                  <tr style={{ background: "rgba(139, 92, 246, 0.1)" }}>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid rgba(139, 92, 246, 0.2)", color: "#c084fc" }}>
                       Skill
                     </th>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid rgba(139, 92, 246, 0.2)", color: "#c084fc" }}>
                       Proof %
                     </th>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid rgba(139, 92, 246, 0.2)", color: "#c084fc" }}>
                       Proficiency
                     </th>
-                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+                    <th style={{ textAlign: "left", padding: 12, fontWeight: 900, borderBottom: "1px solid rgba(139, 92, 246, 0.2)", color: "#c084fc" }}>
                       Status
                     </th>
                   </tr>
@@ -292,29 +433,29 @@ export default function UploadPage() {
 
                       return (
                         <tr key={row.skill}>
-                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1", fontWeight: 900 }}>
+                          <td style={{ padding: 12, borderBottom: "1px solid rgba(139, 92, 246, 0.1)", fontWeight: 900, color: "#e6eef8" }}>
                             {row.skill}
                           </td>
 
-                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
+                          <td style={{ padding: 12, borderBottom: "1px solid rgba(139, 92, 246, 0.1)" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               <div
                                 style={{
                                   height: 10,
                                   width: 160,
                                   borderRadius: 999,
-                                  background: "#eee",
+                                  background: "rgba(139, 92, 246, 0.1)",
                                   overflow: "hidden",
-                                  border: "1px solid #e5e5e5",
+                                  border: "1px solid rgba(139, 92, 246, 0.2)",
                                 }}
                               >
                                 <div style={{ height: "100%", width: `${score}%`, background: c.text }} />
                               </div>
-                              <div style={{ fontWeight: 900 }}>{score}%</div>
+                              <div style={{ fontWeight: 900, color: "#e6eef8" }}>{score}%</div>
                             </div>
                           </td>
 
-                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
+                          <td style={{ padding: 12, borderBottom: "1px solid rgba(139, 92, 246, 0.1)" }}>
                             {row.proficiency && (
                               <span
                                 style={{
@@ -332,11 +473,11 @@ export default function UploadPage() {
                               </span>
                             )}
                             {!row.proficiency && (
-                              <span style={{ color: "#999", fontSize: 12 }}>—</span>
+                              <span style={{ color: "rgba(230, 238, 248, 0.5)", fontSize: 12 }}>—</span>
                             )}
                           </td>
 
-                          <td style={{ padding: 12, borderBottom: "1px solid #f1f1f1" }}>
+                          <td style={{ padding: 12, borderBottom: "1px solid rgba(139, 92, 246, 0.1)" }}>
                             <span
                               style={{
                                 display: "inline-block",
@@ -362,7 +503,7 @@ export default function UploadPage() {
 
           <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div className="pm-card" style={{ padding: 14 }}>
-              <div style={{ fontWeight: 950 }}>✅ Skills present (proven)</div>
+              <div style={{ fontWeight: 950, color: "#e6eef8" }}>✅ Skills present (proven)</div>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {(result.breakdown ?? [])
                   .filter((x: any) => clamp01(Number(x.score ?? 0)) >= 25)
@@ -391,7 +532,7 @@ export default function UploadPage() {
             </div>
 
             <div className="pm-card" style={{ padding: 14 }}>
-              <div style={{ fontWeight: 950 }}>⚠️ Skills not present (missing proof)</div>
+              <div style={{ fontWeight: 950, color: "#e6eef8" }}>⚠️ Skills not present (missing proof)</div>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {(result.breakdown ?? [])
                   .filter((x: any) => clamp01(Number(x.score ?? 0)) < 25)
@@ -441,13 +582,14 @@ export default function UploadPage() {
               disabled={planLoading || selectedMissing.length === 0}
               className="pm-btn"
               style={{
-                padding: "10px 14px",
+                padding: "12px 24px",
                 borderRadius: 10,
                 border: "none",
-                background: selectedMissing.length ? "#0066ff" : "#ddd",
+                background: selectedMissing.length ? "linear-gradient(135deg, #8b5cf6, #7c3aed)" : "rgba(139, 92, 246, 0.2)",
                 color: "white",
                 fontWeight: 800,
                 cursor: selectedMissing.length ? "pointer" : "not-allowed",
+                boxShadow: selectedMissing.length ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
               }}
             >
               {planLoading ? "Generating..." : "Generate Plan"}
@@ -457,7 +599,7 @@ export default function UploadPage() {
           {planResult && (
             <div style={{ marginTop: 18 }}>
               <div className="pm-card" style={{ padding: 16 }}>
-                <div style={{ fontWeight: 900, marginBottom: 8 }}>Action Plan</div>
+                <div style={{ fontWeight: 900, marginBottom: 8, color: "#e6eef8" }}>Action Plan</div>
 
                 {(planResult.actionPlan ?? []).map((p: any, pidx: number) => {
                   const open = !!openMap[p.skill];
@@ -468,16 +610,16 @@ export default function UploadPage() {
                     <div key={p.skill} style={{ marginBottom: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ flex: 1, paddingRight: 12 }}>
-                          <div style={{ fontWeight: 800 }}>{p.skill}</div>
-                          {summary && <div style={{ marginTop: 8, color: '#333' }}>{summary}</div>}
+                          <div style={{ fontWeight: 800, color: "#c084fc" }}>{p.skill}</div>
+                          {summary && <div style={{ marginTop: 8, color: 'rgba(230, 238, 248, 0.8)' }}>{summary}</div>}
 
                           <div style={{ marginTop: 6 }}>
                             {p.candidateExists ? (
-                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: '#e9ffef', border: '1px solid #9fe7b0', color: '#0b6b2b', fontWeight: 900, fontSize: 13 }}>
+                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', fontWeight: 900, fontSize: 13 }}>
                                 this skill can be used in your GitHub
                               </div>
                             ) : (
-                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: '#fff1f1', border: '1px solid #ffb3b3', color: '#b00020', fontWeight: 900, fontSize: 13 }}>
+                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontWeight: 900, fontSize: 13 }}>
                                 this skill cannot be used in Github. But I can give you additional project suggestions.
                               </div>
                             )}
@@ -495,7 +637,7 @@ export default function UploadPage() {
                       </div>
 
                       <div className={`pm-collapsible ${open ? 'expanded' : 'collapsed'}`} aria-hidden={!open}>
-                        <div style={{ marginTop: 12, color: '#333' }}>
+                        <div style={{ marginTop: 12, color: 'rgba(230, 238, 248, 0.8)' }}>
                           {p.candidateExists ? (
                             // Repo guidance path — concise paragraph (no code snippets)
                             <div>
@@ -505,22 +647,22 @@ export default function UploadPage() {
                                 </div>
                               )}
 
-                              <div style={{ marginTop: 6, color: '#333' }}>
+                              <div style={{ marginTop: 6, color: 'rgba(230, 238, 248, 0.8)' }}>
                                 To make this skill clearly provable on GitHub, provide a short, runnable example that exercises the capability end‑to‑end and make it easy to find from the repository README. Document the single command(s) needed to run the example and the exact expected output so reviewers can reproduce the result quickly, and add a lightweight automated check (one focused test or a minimal CI job) so the repository shows a passing status. Keep the demo and instructions minimal and secret‑free so anyone can verify your claim in under a minute.
                               </div>
                             </div>
                           ) : (
                             // Project ideas path — numbered project list and three-step plans directly under each project
                             <div>
-                              <div style={{ fontWeight: 700, marginBottom: 8 }}>Recommended projects to demonstrate this skill</div>
+                              <div style={{ fontWeight: 700, marginBottom: 8, color: "#e6eef8" }}>Recommended projects to demonstrate this skill</div>
 
                               {(p.ideas && p.ideas.length > 0) ? (
                                 <ol style={{ marginLeft: 18 }}>
                                   {p.ideas.map((idea: string, idx: number) => {
                                     const plan = (p.projectPlans && p.projectPlans[idea]) || [];
                                     return (
-                                      <li key={idx} style={{ marginTop: 10 }}>
-                                        <div style={{ fontWeight: 800 }}>{idea}</div>
+                                      <li key={idx} style={{ marginTop: 10, color: 'rgba(230, 238, 248, 0.8)' }}>
+                                        <div style={{ fontWeight: 800, color: "#a78bfa" }}>{idea}</div>
 
                                         {(plan && plan.length > 0) ? (
                                           <ol style={{ marginLeft: 18, marginTop: 8 }}>
@@ -541,7 +683,7 @@ export default function UploadPage() {
                                   })}
                                 </ol>
                               ) : (
-                                <div style={{ fontStyle: 'italic', color: '#444' }}>No project ideas available — try selecting a different skill.</div>
+                                <div style={{ fontStyle: 'italic', color: 'rgba(230, 238, 248, 0.6)' }}>No project ideas available — try selecting a different skill.</div>
                               )}
                             </div>
                           )}
@@ -551,8 +693,8 @@ export default function UploadPage() {
                   );
                 })}
 
-                <div style={{ marginTop: 12, color: '#333' }}>
-                  <div style={{ fontWeight: 900, marginBottom: 6 }}>Suggestions shown only for selected skills</div>
+                <div style={{ marginTop: 12, color: 'rgba(230, 238, 248, 0.8)' }}>
+                  <div style={{ fontWeight: 900, marginBottom: 6, color: "#e6eef8" }}>Suggestions shown only for selected skills</div>
                   <div>Select one or more missing skills above and click <b>Generate Plan</b> to get per-skill project ideas and availability guidance.</div>
                 </div>
               </div>
@@ -562,10 +704,10 @@ export default function UploadPage() {
           <div
             style={{
               marginTop: 16,
-              border: "1px solid #eee",
+              border: "1px solid rgba(139, 92, 246, 0.2)",
               borderRadius: 12,
               padding: 14,
-              background: "#fafafa",
+              background: "rgba(139, 92, 246, 0.05)",
             }}
           >
             {(() => {
@@ -584,8 +726,8 @@ export default function UploadPage() {
                 .map((x: any) => x.skill);
 
               return (
-                <div style={{ color: "#333", lineHeight: 1.7 }}>
-                  <div style={{ fontWeight: 950 }}>Quick feedback</div>
+                <div style={{ color: "rgba(230, 238, 248, 0.8)", lineHeight: 1.7 }}>
+                  <div style={{ fontWeight: 950, color: "#e6eef8" }}>Quick feedback</div>
                   <div>
                     • Strong proof: <b>{proven.length}</b> skills (green) are well-supported by your repos.
                   </div>
@@ -603,7 +745,27 @@ export default function UploadPage() {
             })()}
           </div>
         </div>
+        </ParallaxSection>
       )}
     </div>
+
+        {/* Footer */}
+        <footer style={{
+          padding: "40px 24px",
+          borderTop: "1px solid rgba(139, 92, 246, 0.15)",
+          textAlign: "center",
+          marginTop: 60,
+        }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <p style={{ fontSize: 24, fontWeight: 900, marginBottom: 12, background: "linear-gradient(135deg, #a78bfa, #c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              ProofMap
+            </p>
+            <p style={{ fontSize: 14, color: "rgba(230, 238, 248, 0.5)" }}>
+              © 2026 ProofMap. Validate your skills with GitHub proof.
+            </p>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 }

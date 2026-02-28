@@ -16,6 +16,10 @@
 }
 
 /* subtle animated starfield using gradients */
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   min-height: 100vh;
   margin: 0;
@@ -23,6 +27,7 @@ body {
   background: radial-gradient(1200px 600px at 10% 10%, rgba(77,184,255,0.06), transparent),
               radial-gradient(900px 500px at 90% 80%, rgba(124,92,255,0.06), transparent),
               linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  background-attachment: fixed;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -66,8 +71,13 @@ body::before {
   padding: 16px;
   transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
   backdrop-filter: blur(6px) saturate(120%);
+  will-change: transform;
+  transform-style: preserve-3d;
 }
-.pm-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(12,13,35,0.6), 0 4px 20px var(--glow); }
+.pm-card:hover { 
+  transform: translateY(-6px) translateZ(10px); 
+  box-shadow: 0 20px 40px rgba(12,13,35,0.6), 0 4px 20px var(--glow); 
+}
 
 .pm-btn {
   display: inline-flex;
