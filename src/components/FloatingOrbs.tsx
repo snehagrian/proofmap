@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface FloatingOrb {
   id: number;
@@ -14,7 +14,9 @@ interface FloatingOrb {
 }
 
 export default function FloatingOrbs() {
-  const [orbs] = useState<FloatingOrb[]>(() => {
+  const [orbs, setOrbs] = useState<FloatingOrb[]>([]);
+
+  useEffect(() => {
     const colors = [
       "rgba(139, 92, 246, 0.15)",   // violet
       "rgba(168, 85, 247, 0.12)",   // purple  
@@ -22,7 +24,7 @@ export default function FloatingOrbs() {
       "rgba(124, 58, 237, 0.13)",   // dark purple
     ];
 
-    return Array.from({ length: 8 }, (_, i) => ({
+    setOrbs(Array.from({ length: 8 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
@@ -31,8 +33,8 @@ export default function FloatingOrbs() {
       delay: Math.random() * 5,
       color: colors[Math.floor(Math.random() * colors.length)],
       blur: Math.random() * 40 + 40,
-    }));
-  });
+    })));
+  }, []);
 
   return (
     <div
@@ -65,28 +67,14 @@ export default function FloatingOrbs() {
           }}
         />
       ))}
-      <style jsx>{`
-        ${orbs
-          .map(
-            (orb) => `
+      <style dangerouslySetInnerHTML={{ __html: orbs.map((orb) => `
           @keyframes float-${orb.id} {
-            0%, 100% {
-              transform: translate(-50%, -50%) translateY(0px) translateX(0px);
-            }
-            25% {
-              transform: translate(-50%, -50%) translateY(-30px) translateX(20px);
-            }
-            50% {
-              transform: translate(-50%, -50%) translateY(-15px) translateX(-25px);
-            }
-            75% {
-              transform: translate(-50%, -50%) translateY(20px) translateX(15px);
-            }
+            0%, 100% { transform: translate(-50%, -50%) translateY(0px) translateX(0px); }
+            25%       { transform: translate(-50%, -50%) translateY(-30px) translateX(20px); }
+            50%       { transform: translate(-50%, -50%) translateY(-15px) translateX(-25px); }
+            75%       { transform: translate(-50%, -50%) translateY(20px) translateX(15px); }
           }
-        `
-          )
-          .join("")}
-      `}</style>
+        `).join("") }} />
     </div>
   );
 }

@@ -97,7 +97,7 @@ export default function Home() {
               </div>
 
               {/* Stats */}
-              <div style={{
+              {/* <div style={{
                 display: "flex",
                 gap: 48,
                 justifyContent: "center",
@@ -116,7 +116,7 @@ export default function Home() {
                   <div style={{ fontSize: 36, fontWeight: 900, color: "#a78bfa" }}>Free</div>
                   <div style={{ fontSize: 14, color: "rgba(230, 238, 248, 0.6)", fontWeight: 600 }}>Forever</div>
                 </div>
-              </div>
+              </div> */}
             </div>
           </ParallaxSection>
         </section>
