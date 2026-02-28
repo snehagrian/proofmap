@@ -620,7 +620,7 @@ export default function UploadPage() {
                               </div>
                             ) : (
                               <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontWeight: 900, fontSize: 13 }}>
-                                this skill cannot be used in Github Projects. But I can give you additional project suggestions.
+                                this skill cannot be used in your Github Projects. But I can give you additional project suggestions.
                               </div>
                             )}
                           </div>
