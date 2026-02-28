@@ -40,6 +40,11 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMissing, setSelectedMissing] = useState<string[]>([]);
+  const [planLoading, setPlanLoading] = useState(false);
+  const [planResult, setPlanResult] = useState<any>(null);
+  // Track open/closed state for per-skill collapsible project lists
+  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
 
   // ✅ Load PDF.js from CDN so Next never bundles it
   async function loadPdfJsFromCdn(): Promise<any> {
@@ -121,13 +126,49 @@ export default function UploadPage() {
     }
   }
 
-  return (
-    <div style={{ maxWidth: 900, margin: "40px auto", padding: 16 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 800 }}>
-        ProofMap — Resume ↔ GitHub Skill Proof
-      </h1>
+  async function onGeneratePlan() {
+    if (!result) return;
+    if (selectedMissing.length === 0) return setError("Select at least one missing skill to generate a plan.");
 
-      <div style={{ marginTop: 20, display: "grid", gap: 12 }}>
+    setError(null);
+    setPlanLoading(true);
+    setPlanResult(null);
+
+    try {
+      // Reuse same resumeText and githubUsername to request an action plan
+      const resumeText = await extractTextFromPdfInBrowser(file!);
+
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          githubUsername: githubUsername.trim(),
+          resumeText,
+          selectedSkills: selectedMissing,
+        }),
+      });
+
+      const data = await res.json();
+      setPlanLoading(false);
+
+      if (!res.ok) {
+        setError(data?.error || "Failed to generate plan.");
+        return;
+      }
+
+      setPlanResult(data);
+    } catch (e: any) {
+      setPlanLoading(false);
+      setError(e?.message || "Failed to generate plan.");
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 980, margin: "40px auto", padding: 20 }}>
+      <h1 style={{ fontSize: 30, fontWeight: 900, marginBottom: 10 }}>ProofMap — Resume ↔ GitHub Skill Proof</h1>
+      <div style={{ color: '#666', marginBottom: 18 }}>Upload your resume and GitHub username. Select missing skills to generate a concise plan and project ideas.</div>
+
+      <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
         <label>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>GitHub username</div>
           <input
@@ -169,16 +210,7 @@ export default function UploadPage() {
       </div>
 
       {result && (
-        <div
-          style={{
-            marginTop: 28,
-            padding: 18,
-            border: "1px solid #eee",
-            borderRadius: 14,
-            background: "white",
-          }}
-        >
-          {/* Top summary */}
+        <div className="pm-card" style={{ marginTop: 28, padding: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 900 }}>Overall Skill Reality Score</div>
@@ -226,7 +258,6 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Skill Table */}
           <div style={{ marginTop: 18 }}>
             <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 10 }}>
               Skill Proof Table
@@ -329,9 +360,8 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Present vs Missing */}
           <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+            <div className="pm-card" style={{ padding: 14 }}>
               <div style={{ fontWeight: 950 }}>✅ Skills present (proven)</div>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {(result.breakdown ?? [])
@@ -360,7 +390,7 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
+            <div className="pm-card" style={{ padding: 14 }}>
               <div style={{ fontWeight: 950 }}>⚠️ Skills not present (missing proof)</div>
               <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {(result.breakdown ?? [])
@@ -369,10 +399,14 @@ export default function UploadPage() {
                   .map((x: any) => {
                     const score = clamp01(Number(x.score ?? 0));
                     const c = getColor(score);
+                    const checked = selectedMissing.includes(x.skill);
                     return (
-                      <span
+                      <label
                         key={x.skill}
                         style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
                           padding: "6px 10px",
                           borderRadius: 999,
                           background: c.bg,
@@ -380,17 +414,151 @@ export default function UploadPage() {
                           color: c.text,
                           fontWeight: 900,
                           fontSize: 12,
+                          cursor: "pointer",
                         }}
                       >
-                        {x.skill} · {score}%
-                      </span>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setSelectedMissing((prev) => {
+                              if (e.target.checked) return [...prev, x.skill];
+                              return prev.filter((s) => s !== x.skill);
+                            });
+                          }}
+                        />
+                        <span>{x.skill} · {score}%</span>
+                      </label>
                     );
                   })}
               </div>
             </div>
           </div>
 
-          {/* 4-line feedback summary */}
+          <div style={{ marginTop: 12 }}>
+            <button
+              onClick={onGeneratePlan}
+              disabled={planLoading || selectedMissing.length === 0}
+              className="pm-btn"
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "none",
+                background: selectedMissing.length ? "#0066ff" : "#ddd",
+                color: "white",
+                fontWeight: 800,
+                cursor: selectedMissing.length ? "pointer" : "not-allowed",
+              }}
+            >
+              {planLoading ? "Generating..." : "Generate Plan"}
+            </button>
+          </div>
+
+          {planResult && (
+            <div style={{ marginTop: 18 }}>
+              <div className="pm-card" style={{ padding: 16 }}>
+                <div style={{ fontWeight: 900, marginBottom: 8 }}>Action Plan</div>
+
+                {(planResult.actionPlan ?? []).map((p: any, pidx: number) => {
+                  const open = !!openMap[p.skill];
+                  const summaryRaw = String(p.summary || "").trim();
+                  const summary = summaryRaw ? (/[.?!]$/.test(summaryRaw) ? summaryRaw : summaryRaw + '.') : '';
+
+                  return (
+                    <div key={p.skill} style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ flex: 1, paddingRight: 12 }}>
+                          <div style={{ fontWeight: 800 }}>{p.skill}</div>
+                          {summary && <div style={{ marginTop: 8, color: '#333' }}>{summary}</div>}
+
+                          <div style={{ marginTop: 6 }}>
+                            {p.candidateExists ? (
+                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: '#e9ffef', border: '1px solid #9fe7b0', color: '#0b6b2b', fontWeight: 900, fontSize: 13 }}>
+                                this skill can be used in your GitHub
+                              </div>
+                            ) : (
+                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: '#fff1f1', border: '1px solid #ffb3b3', color: '#b00020', fontWeight: 900, fontSize: 13 }}>
+                                this skill cannot be used in Github. But I can give you additional project suggestions.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          className="pm-btn pm-btn-ghost"
+                          onClick={() => setOpenMap((m) => ({ ...m, [p.skill]: !m[p.skill] }))}
+                          aria-expanded={open}
+                        >
+                          <span className={`pm-chevron ${open ? 'open' : ''}`}>›</span>
+                          <span style={{ marginLeft: 8 }}>{open ? (p.candidateExists ? 'Hide guidance' : 'Hide projects') : (p.candidateExists ? 'Repo guidance' : 'Project ideas')}</span>
+                        </button>
+                      </div>
+
+                      <div className={`pm-collapsible ${open ? 'expanded' : 'collapsed'}`} aria-hidden={!open}>
+                        <div style={{ marginTop: 12, color: '#333' }}>
+                          {p.candidateExists ? (
+                            // Repo guidance path — concise paragraph (no code snippets)
+                            <div>
+                              {p.usage && (
+                                <div style={{ marginBottom: 8 }}>
+                                  {String(p.usage).trim().replace(/\s+/g, ' ')}{(/[.?!]$/.test(String(p.usage).trim()) ? '' : '.')} 
+                                </div>
+                              )}
+
+                              <div style={{ marginTop: 6, color: '#333' }}>
+                                To make this skill clearly provable on GitHub, provide a short, runnable example that exercises the capability end‑to‑end and make it easy to find from the repository README. Document the single command(s) needed to run the example and the exact expected output so reviewers can reproduce the result quickly, and add a lightweight automated check (one focused test or a minimal CI job) so the repository shows a passing status. Keep the demo and instructions minimal and secret‑free so anyone can verify your claim in under a minute.
+                              </div>
+                            </div>
+                          ) : (
+                            // Project ideas path — numbered project list and three-step plans directly under each project
+                            <div>
+                              <div style={{ fontWeight: 700, marginBottom: 8 }}>Recommended projects to demonstrate this skill</div>
+
+                              {(p.ideas && p.ideas.length > 0) ? (
+                                <ol style={{ marginLeft: 18 }}>
+                                  {p.ideas.map((idea: string, idx: number) => {
+                                    const plan = (p.projectPlans && p.projectPlans[idea]) || [];
+                                    return (
+                                      <li key={idx} style={{ marginTop: 10 }}>
+                                        <div style={{ fontWeight: 800 }}>{idea}</div>
+
+                                        {(plan && plan.length > 0) ? (
+                                          <ol style={{ marginLeft: 18, marginTop: 8 }}>
+                                            {plan.map((step: string, sidx: number) => {
+                                              const trimmed = String(step || '').trim();
+                                              if (!trimmed) return null;
+                                              // Ensure first letter is capitalized and sentence ends with a period.
+                                              const s = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).replace(/\s+/g, ' ');
+                                              const sentence = /[.?!]$/.test(s) ? s : s + '.';
+                                              return (
+                                                <li key={sidx} style={{ marginTop: 6 }}>{sentence}</li>
+                                              );
+                                            })}
+                                          </ol>
+                                        ) : null}
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              ) : (
+                                <div style={{ fontStyle: 'italic', color: '#444' }}>No project ideas available — try selecting a different skill.</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div style={{ marginTop: 12, color: '#333' }}>
+                  <div style={{ fontWeight: 900, marginBottom: 6 }}>Suggestions shown only for selected skills</div>
+                  <div>Select one or more missing skills above and click <b>Generate Plan</b> to get per-skill project ideas and availability guidance.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div
             style={{
               marginTop: 16,

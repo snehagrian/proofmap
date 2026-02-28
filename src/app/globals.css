@@ -1,26 +1,134 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Galaxy palette */
+  --bg-top: #07021a; /* near-black deep purple */
+  --bg-bottom: #07112b; /* deep navy */
+  --accent-1: #7c5cff; /* vivid purple */
+  --accent-2: #4db8ff; /* electric blue */
+  --muted: #cbd5e1;
+  --card-bg: rgba(255,255,255,0.03);
+  --glass-border: rgba(255,255,255,0.06);
+  --glow: rgba(124,92,255,0.15);
+  --text: #e6eef8;
+  --muted-text: rgba(230,238,248,0.72);
+  --success: #6ee7b7;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* subtle animated starfield using gradients */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  font-family: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: radial-gradient(1200px 600px at 10% 10%, rgba(77,184,255,0.06), transparent),
+              radial-gradient(900px 500px at 90% 80%, rgba(124,92,255,0.06), transparent),
+              linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 16px;
+  line-height: 1.5;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* tiny animated stars layer */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.06) 0.5px, transparent 0.6px),
+                    radial-gradient(rgba(255,255,255,0.04) 0.6px, transparent 0.7px);
+  background-size: 180px 180px, 320px 320px;
+  opacity: 0.7;
+  pointer-events: none;
+  animation: star-scroll 60s linear infinite;
+}
+
+@keyframes star-scroll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-200px); }
+}
+
+/* content container should sit above the star layer */
+#__next, .pm-app-root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Themed UI helpers */
+.pm-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(9,10,31,0.45), 0 2px 10px rgba(77,184,255,0.03);
+  padding: 16px;
+  transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease;
+  backdrop-filter: blur(6px) saturate(120%);
+}
+.pm-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(12,13,35,0.6), 0 4px 20px var(--glow); }
+
+.pm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+}
+
+.pm-btn-primary {
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  color: white;
+  box-shadow: 0 10px 30px rgba(77,184,255,0.08), 0 4px 14px rgba(124,92,255,0.08);
+}
+.pm-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(77,184,255,0.12), 0 6px 22px rgba(124,92,255,0.12); }
+
+.pm-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+/* Checkbox subtle animation & accent color */
+input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent-1); transition: transform 140ms ease; }
+input[type="checkbox"]:active { transform: scale(0.94); }
+
+/* Collapsible animation */
+.pm-collapsible { overflow: hidden; transition: max-height 300ms ease, opacity 220ms ease; }
+.pm-collapsible.collapsed { max-height: 0; opacity: 0; }
+.pm-collapsible.expanded { max-height: 720px; opacity: 1; }
+
+/* Chevron styling */
+.pm-chevron { display: inline-block; transition: transform 240ms ease; color: var(--accent-2); }
+.pm-chevron.open { transform: rotate(90deg); }
+
+/* Table hover with subtle glow */
+table tr:hover td { background: linear-gradient(90deg, rgba(77,184,255,0.02), rgba(124,92,255,0.02)); }
+
+/* Project heading */
+.pm-project-heading { font-size: 15px; font-weight: 800; margin-bottom: 8px; color: var(--text); }
+
+/* Availability badge */
+.pm-availability { font-style: normal; color: var(--muted-text); font-size: 13px; margin-bottom: 10px; padding: 6px 10px; border-radius: 999px; display: inline-block; }
+
+/* Accent pill variants used inline in code remain compatible */
+.pill-yes { background: linear-gradient(90deg, rgba(124,92,255,0.12), rgba(77,184,255,0.06)); border: 1px solid rgba(124,92,255,0.16); color: var(--accent-1); font-weight: 900; }
+.pill-no { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); color: #ffbbbb; font-weight: 900; }
+
+/* small helper for muted text */
+.muted { color: var(--muted-text); }
+
+/* Responsive tweaks */
+@media (max-width: 920px) {
+  body { font-size: 15px; }
+  .pm-card { padding: 12px; }
+}
+
+@media (max-width: 720px) {
+  .pm-grid-2 { display: block; }
 }

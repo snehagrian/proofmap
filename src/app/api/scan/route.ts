@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Octokit } from "@octokit/rest";
+import { generateGoal, generateIntegrationSuggestions } from "../../../../src/lib/suggestions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -141,7 +142,7 @@ async function checkRateLimit(octokit: Octokit) {
 function parsePackageJsonDeps(pkgText: string): Set<string> {
   try {
     const j = JSON.parse(pkgText);
-    const deps = { ...(j.dependencies || {}), ...(j.devDependencies || {}), ...(j.peerDependencies || {}) };
+    const deps = { ...(j.dependencies || {}), ...(j.devDependencies || {}) };
     return new Set(Object.keys(deps).map((x) => x.toLowerCase()));
   } catch {
     return new Set<string>();
@@ -375,7 +376,7 @@ export async function POST(req: Request) {
   const startTime = Date.now();
   
   try {
-    const { githubUsername, resumeText } = await req.json();
+    const { githubUsername, resumeText, selectedSkills } = await req.json();
 
     if (!githubUsername) return NextResponse.json({ error: "Missing GitHub username" }, { status: 400 });
     if (!resumeText) return NextResponse.json({ error: "Missing resumeText" }, { status: 400 });
@@ -633,6 +634,124 @@ export async function POST(req: Request) {
 
     const processingTime = Date.now() - startTime;
     console.log(`[ProofMap] Analyzed ${repos.length} repos for ${githubUsername} in ${processingTime}ms`);
+    // Helper: build a short, user-facing summary explaining why the skill is missing
+    function buildSkillSummary(skill: string) {
+      const rules = RULES[skill];
+      let foundDeps = false;
+      let foundFiles = false;
+      let foundImports = false;
+      let foundLang = false;
+
+      if (rules?.linguistLang) {
+        const lp = langPercent(rules.linguistLang);
+        if (lp > 0) foundLang = true;
+      }
+
+      for (const r of repoFacts) {
+        if (rules?.fileIndicators?.length) {
+          if (rules.fileIndicators.some((fi) => r.filesLower.some((p) => p.includes(fi.toLowerCase())))) foundFiles = true;
+        }
+        if (rules?.deps?.length) {
+          if (rules.deps.some((d) => r.deps.has(d.toLowerCase()))) foundDeps = true;
+        }
+        if (rules?.pyDeps?.length) {
+          if (rules.pyDeps.some((d) => r.pyDeps.has(d.toLowerCase()))) foundDeps = true;
+        }
+        if (rules?.importRegex?.length) {
+          if (r.codeSamples.some((txt) => rules.importRegex!.some((re) => re.test(txt)))) foundImports = true;
+        }
+      }
+
+      const l = (skill || '').toLowerCase();
+
+      // Tailored, concise summaries per common skill
+      if (l.includes('react')) {
+        if (!foundDeps && !foundFiles && !foundImports && !foundLang) return 'No React dependency, component files, or import usage were found. Add a small reusable component with a demo page and document how to run it so reviewers can verify the UI.';
+        if (foundDeps && !foundFiles) return 'A React dependency was detected but there is no demo component or page. Add one demo component, a simple page that renders it, and exact run commands in the README.';
+        return 'Some UI files or React usage were detected but there is no clear runnable demo. Add a demo page or a Storybook entry and include one verification command in the README.';
+      }
+
+      if (l.includes('next')) {
+        if (!foundDeps && !foundFiles && !foundImports && !foundLang) return 'No Next.js indicators were found. Create a minimal Next.js page and a simple API route and document the local run steps so reviewers can verify server side rendering.';
+        if (foundDeps && !foundFiles) return 'Next.js dependency appears in the codebase but no app or pages were found. Add a single page and matching API route and document the exact URLs to visit.';
+        return 'Partial Next.js evidence was found. Add a deterministic API route and a server rendered page and document the commands and paths to verify rendering.';
+      }
+
+      if (l.includes('node')) {
+        if (!foundDeps && !foundFiles && !foundImports && !foundLang) return 'No Node.js indicators were found. Add a small service or script with a package.json and a short example route or command and document how to run it.';
+        if (foundFiles && !foundImports) return 'Project files suggest JavaScript but no backend route or runnable script was found. Add one small endpoint or script and a curl example to show the expected JSON output.';
+        return 'Some Node indicators exist but no clear runnable example. Add a focused endpoint or script, include run commands, and provide a verification curl command in the README.';
+      }
+
+      if (l.includes('docker')) {
+        if (!foundFiles) return 'No Dockerfile or compose files were found. Add a Dockerfile and a .dockerignore and document build and run commands for reviewers to verify the container.';
+        return 'Docker configuration was found but no clear verification was documented. Add build and run commands and a one line health check command so reviewers can confirm the container starts.';
+      }
+
+      if (l.includes('github actions') || l.includes('ci') || l.includes('cicd')) {
+        if (!foundFiles && !foundImports) return 'No CI workflow files were found. Add a minimal workflow that runs the test command and document how a reviewer can trigger or inspect the run.';
+        return 'CI workflow files exist but there is no clear test target or documentation. Add a tiny test job and mention the workflow name in the README so reviewers can find it.';
+      }
+
+      if (l.includes('test') || l.includes('testing')) {
+        if (!foundFiles && !foundDeps && !foundImports) return 'No tests or testing frameworks were detected. Add a focused unit test for a core function and document the command to run it.';
+        return 'Tests were partially detected but there is no concise verification path. Add one fast unit test with a clear expected output and a test script in package.json or equivalent.';
+      }
+
+      if (l.includes('aws')) {
+        if (!foundDeps && !foundFiles && !foundImports) return 'No AWS SDK usage or IaC files were detected. Add a short script that uses the SDK and document credential setup and one example command to verify the action.';
+        return 'AWS references exist but no runnable example was found. Add a small script that performs one SDK action and document exact verification steps for reviewers.';
+      }
+
+      if (l.includes('postgres') || l.includes('mysql') || l.includes('postgresql') || l.includes('mongodb') || l.includes('mongo')) {
+        if (!foundFiles && !foundDeps && !foundImports) return `No database migrations, SQL files, or driver dependencies were found. Add a minimal migration and a seed script with exact commands to run and verify the seeded data.`;
+        return 'Database related files or dependencies were detected but there is no small runnable migration or query example. Add a single migration and a verification query with expected output documented in the README.';
+      }
+
+      if (l.includes('python')) {
+        if (!foundFiles && !foundDeps && !foundImports && !foundLang) return 'No Python files or requirements were found. Add a minimal script with a requirements.txt and a pytest test and document exact commands to run both.';
+        return 'Python code was detected but no clear runnable example exists. Add a small script, one pytest test, and document the virtual environment commands and expected output.';
+      }
+
+      if (l.includes('java')) {
+        if (!foundFiles && !foundDeps && !foundImports && !foundLang) return 'No Java source or build files were found. Add a tiny Maven or Gradle module with one example class and a JUnit test and document how to run the test.';
+        return 'Java build files or sources were detected but no runnable test was documented. Add one JUnit test and include exact build and test commands in the README.';
+      }
+
+      // Generic fallback
+      if (!foundFiles && !foundDeps && !foundImports && !foundLang) {
+        return 'No clear evidence was found across repositories. Consider adding a small focused example or demo project and document exact verification steps in the README.';
+      }
+      if (foundFiles && !foundDeps && !foundImports) {
+        return 'Some files suggest related work but there are no dependency or import signals. Add a concise runnable example and document exact verification steps.';
+      }
+      if ((foundDeps || foundImports) && !foundFiles) {
+        return 'Dependency or import references were found but no clear runnable example exists. Add one example file that uses the dependency and include a verification command.';
+      }
+      return 'Partial evidence was found but there is no clear, runnable demonstration. Add one focused example, update the README with a verification command, and include a short test or script to show the output.';
+    }
+
+    // Build suggestions for each missing skill (suggestions are simple strings)
+    const missingSuggestions = missingProof.map((skill) => {
+      const sug = generateIntegrationSuggestions(skill, repoFacts as any as any[]);
+      return {
+        skill,
+        goal: generateGoal(skill),
+        summary: buildSkillSummary(skill),
+        candidateExists: !!sug && !!sug.candidateExists,
+        usage: sug?.usage,
+        suggestions: sug?.ideas || [],
+      };
+    });
+
+    // If client provided selectedSkills, produce an actionPlan with plain sentences (no prefixes)
+    const actionPlan = Array.isArray(selectedSkills) && selectedSkills.length
+      ? selectedSkills.map((skill: string) => {
+          const sug = generateIntegrationSuggestions(skill, repoFacts as any as any[]);
+          const steps = sug?.ideas || [];
+          return { skill, goal: generateGoal(skill), summary: buildSkillSummary(skill), candidateExists: !!sug?.candidateExists, usage: sug?.usage, ideas: steps };
+        })
+      : undefined;
 
     return NextResponse.json({
       githubUsername,
@@ -641,6 +760,8 @@ export async function POST(req: Request) {
       claimedSkills,
       provenSkills,
       missingProof,
+      missingSuggestions,
+      actionPlan,
       breakdown,
       meta: {
         processingTimeMs: processingTime,
