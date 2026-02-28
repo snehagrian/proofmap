@@ -31,7 +31,7 @@ export default function Home() {
                   fontSize: 14,
                   fontWeight: 700,
                   marginBottom: 32,
-                }}>✨ AI-Powered Resume Validation</span>
+                }}>✨ Resume Validation</span>
               </div>
 
               <h1 style={{ 
@@ -139,7 +139,7 @@ export default function Home() {
                   backgroundClip: "text",
                 }}>How It Works</h2>
                 <p style={{ fontSize: 18, color: "rgba(230, 238, 248, 0.7)", maxWidth: 600, margin: "0 auto" }}>
-                  Our AI-powered system analyzes your GitHub repositories to validate your resume claims
+                  Our system analyzes your GitHub repositories to validate your resume claims
                 </p>
               </div>
 
@@ -163,6 +163,11 @@ export default function Home() {
                     icon: "📊",
                     title: "Get Your Score",
                     description: "Receive a detailed breakdown with proficiency levels and improvement suggestions"
+                  },
+                  {
+                    icon: "🎯",
+                    title: "Set Goals for Missing Skills",
+                    description: "Select missing skills and set clear learning goals with an action plan to build proof on GitHub"
                   },
                 ].map((feature, idx) => (
                   <div key={idx} className="pm-card" style={{
