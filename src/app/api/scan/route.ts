@@ -393,11 +393,22 @@ export async function POST(req: Request) {
       }, { status: 429 });
     }
 
-    const reposRes = await octokit.repos.listForUser({
-      username: githubUsername,
-      per_page: 25,
-      sort: "updated",
-    });
+    let reposRes;
+    try {
+      reposRes = await octokit.repos.listForUser({
+        username: githubUsername,
+        per_page: 25,
+        sort: "updated",
+      });
+    } catch (e: any) {
+      if (e?.status === 404) {
+        return NextResponse.json(
+          { error: `GitHub user "${githubUsername}" not found. Please check the username and try again.` },
+          { status: 404 }
+        );
+      }
+      throw e;
+    }
 
     const repos = reposRes.data
       .filter((r) => !r.fork)

@@ -49,6 +49,11 @@ export default function UploadPage() {
   // Track open/closed state for per-skill collapsible project lists
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
 
+  // AI mode – when on, OpenAI generates richer skill-development suggestions
+  const [aiMode, setAiMode] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<Record<string, any>>({});
+  const [aiSuggestionsLoading, setAiSuggestionsLoading] = useState(false);
+
   // ✅ Load PDF.js from CDN so Next never bundles it
   async function loadPdfJsFromCdn(): Promise<any> {
     if (typeof window === "undefined") throw new Error("Browser only");
@@ -101,6 +106,7 @@ export default function UploadPage() {
     setError(null);
     setLoading(true);
     setResult(null);
+    setAiSuggestions({});
 
     try {
       const resumeText = await extractTextFromPdfInBrowser(file);
@@ -123,6 +129,39 @@ export default function UploadPage() {
       }
 
       setResult(data);
+
+      // If AI mode is on, immediately fetch AI suggestions for all missing skills
+      if (aiMode) {
+        const missingSkills = (data.breakdown ?? [])
+          .filter((x: any) => clamp01(Number(x.score ?? 0)) < 25)
+          .map((x: any) => x.skill);
+
+        if (missingSkills.length > 0) {
+          setAiSuggestionsLoading(true);
+          try {
+            const aiRes = await fetch("/api/ai-suggestions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                skills: missingSkills,
+                githubUsername: githubUsername.trim(),
+                breakdown: data.breakdown,
+              }),
+            });
+            const aiData = await aiRes.json();
+            if (aiRes.ok && Array.isArray(aiData.suggestions)) {
+              const map: Record<string, any> = {};
+              for (const s of aiData.suggestions) map[s.skill] = s.plan;
+              setAiSuggestions(map);
+            } else {
+              setError(aiData?.error || "AI suggestions failed.");
+            }
+          } catch (aiErr: any) {
+            setError(aiErr?.message || "AI suggestions request failed.");
+          }
+          setAiSuggestionsLoading(false);
+        }
+      }
     } catch (e: any) {
       setLoading(false);
       setError(e?.message || "Failed to read the PDF.");
@@ -303,25 +342,48 @@ export default function UploadPage() {
                 </label>
               </div>
 
-              <button
-                onClick={onScan}
-                disabled={loading}
-                className="pm-btn"
-                style={{
-                  padding: "16px 32px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: loading ? "rgba(139, 92, 246, 0.5)" : "linear-gradient(135deg, #8b5cf6, #7c3aed)",
-                  color: "white",
-                  fontWeight: 800,
-                  fontSize: 18,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  boxShadow: loading ? "none" : "0 8px 20px rgba(139, 92, 246, 0.4)",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                {loading ? "🔍 Analyzing..." : "🚀 Analyze My Skills"}
-              </button>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={onScan}
+                  disabled={loading}
+                  className="pm-btn"
+                  style={{
+                    flex: 1,
+                    padding: "16px 32px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: loading ? "rgba(139, 92, 246, 0.5)" : "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                    color: "white",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    boxShadow: loading ? "none" : "0 8px 20px rgba(139, 92, 246, 0.4)",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {loading ? "🔍 Analyzing..." : "🚀 Analyze My Skills"}
+                </button>
+
+                {/* ✨ AI Mode Toggle */}
+                <button
+                  onClick={() => { setAiMode((m) => !m); setAiSuggestions({}); }}
+                  title={aiMode ? "Disable AI-powered suggestions" : "Enable AI-powered suggestions"}
+                  style={{
+                    padding: "16px 20px",
+                    borderRadius: 12,
+                    border: aiMode ? "2px solid rgba(168, 85, 247, 0.65)" : "2px solid rgba(139, 92, 246, 0.3)",
+                    background: aiMode ? "rgba(168, 85, 247, 0.15)" : "rgba(139, 92, 246, 0.05)",
+                    color: aiMode ? "#c084fc" : "rgba(230, 238, 248, 0.6)",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    transition: "all 0.25s ease",
+                    fontSize: 15,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {aiMode ? "✨ AI ON" : "✨ AI Mode"}
+                </button>
+              </div>
 
               {error && (
                 <div style={{ 
@@ -576,7 +638,7 @@ export default function UploadPage() {
             </div>
           </div>
 
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button
               onClick={onGeneratePlan}
               disabled={planLoading || selectedMissing.length === 0}
@@ -585,14 +647,16 @@ export default function UploadPage() {
                 padding: "12px 24px",
                 borderRadius: 10,
                 border: "none",
-                background: selectedMissing.length ? "linear-gradient(135deg, #8b5cf6, #7c3aed)" : "rgba(139, 92, 246, 0.2)",
+                background: selectedMissing.length
+                  ? "linear-gradient(135deg, #8b5cf6, #7c3aed)"
+                  : "rgba(139, 92, 246, 0.2)",
                 color: "white",
                 fontWeight: 800,
-                cursor: selectedMissing.length ? "pointer" : "not-allowed",
+                cursor: (planLoading || !selectedMissing.length) ? "not-allowed" : "pointer",
                 boxShadow: selectedMissing.length ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
               }}
             >
-              {planLoading ? "Generating..." : "Generate Plan"}
+              {planLoading ? "Generating…" : "Generate Plan"}
             </button>
           </div>
 
@@ -689,6 +753,80 @@ export default function UploadPage() {
                           )}
                         </div>
                       </div>
+
+                      {/* ✨ AI Suggestions Panel – visible when AI mode is active */}
+                      {aiMode && aiSuggestions[p.skill] && (() => {
+                        const plan = aiSuggestions[p.skill];
+                        return (
+                          <div style={{
+                            marginTop: 14,
+                            padding: "18px 20px",
+                            borderRadius: 12,
+                            background: "rgba(168, 85, 247, 0.09)",
+                            border: "1px solid rgba(168, 85, 247, 0.35)",
+                          }}>
+                            <div style={{ fontWeight: 900, color: "#c084fc", marginBottom: 12, fontSize: 14 }}>
+                              ✨ AI Development Plan
+                            </div>
+                            {plan?.whyItMatters && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Why it matters</div>
+                                <div style={{ color: "rgba(230,238,248,0.85)", fontSize: 13, lineHeight: 1.7 }}>{plan.whyItMatters}</div>
+                              </div>
+                            )}
+                            {plan?.projects?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Project ideas</div>
+                                <div style={{ display: "grid", gap: 6 }}>
+                                  {plan.projects.map((proj: any, i: number) => (
+                                    <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                                      <div style={{ fontWeight: 800, color: "#a78bfa", fontSize: 12 }}>{proj.name}</div>
+                                      <div style={{ color: "rgba(230,238,248,0.7)", fontSize: 12, marginTop: 2 }}>{proj.description}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {plan?.keyPatterns?.length > 0 && (
+                              <div style={{ marginBottom: 10 }}>
+                                <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Key patterns</div>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                                  {plan.keyPatterns.map((kp: string, i: number) => (
+                                    <span key={i} style={{ padding: "3px 9px", borderRadius: 999, background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#a78bfa", fontSize: 11, fontWeight: 700 }}>{kp}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 4 }}>
+                              {plan?.estimatedTime && (
+                                <div>
+                                  <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Est. time</div>
+                                  <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 12 }}>{plan.estimatedTime}</div>
+                                </div>
+                              )}
+                              {plan?.visibilityTip && (
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Visibility tip</div>
+                                  <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 12 }}>{plan.visibilityTip}</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {aiMode && aiSuggestionsLoading && !aiSuggestions[p.skill] && (
+                        <div style={{
+                          marginTop: 14,
+                          padding: "12px 16px",
+                          borderRadius: 12,
+                          background: "rgba(168, 85, 247, 0.05)",
+                          border: "1px solid rgba(168, 85, 247, 0.2)",
+                          color: "#a78bfa",
+                          fontSize: 14,
+                        }}>
+                          ✨ Generating AI suggestions…
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -744,6 +882,103 @@ export default function UploadPage() {
               );
             })()}
           </div>
+          {/* ✨ AI Skill Development Plans – shown automatically when AI mode is on */}
+          {aiMode && (Object.keys(aiSuggestions).length > 0 || aiSuggestionsLoading) && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontWeight: 900, color: "#c084fc", marginBottom: 14, fontSize: 17, display: "flex", alignItems: "center", gap: 10 }}>
+                ✨ AI Skill Development Plans
+                <span style={{ fontSize: 12, color: "rgba(230,238,248,0.45)", fontWeight: 500 }}>powered by GPT-4o mini</span>
+              </div>
+
+              {aiSuggestionsLoading && Object.keys(aiSuggestions).length === 0 && (
+                <div style={{
+                  color: "#a78bfa",
+                  fontSize: 14,
+                  padding: "16px 18px",
+                  borderRadius: 12,
+                  background: "rgba(168,85,247,0.07)",
+                  border: "1px solid rgba(168,85,247,0.2)",
+                }}>
+                  ✨ Generating personalised development plans for your missing skills…
+                </div>
+              )}
+
+              <div style={{ display: "grid", gap: 14 }}>
+                {Object.entries(aiSuggestions).map(([skill, plan]: [string, any]) => (
+                  <div key={skill} style={{
+                    padding: "20px 22px",
+                    borderRadius: 14,
+                    background: "rgba(168,85,247,0.09)",
+                    border: "1px solid rgba(168,85,247,0.35)",
+                  }}>
+                    <div style={{ fontWeight: 900, color: "#c084fc", marginBottom: 14, fontSize: 16 }}>
+                      ✨ {skill}
+                    </div>
+
+                    {plan?.whyItMatters && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>Why it matters</div>
+                        <div style={{ color: "rgba(230,238,248,0.85)", fontSize: 14, lineHeight: 1.7 }}>{plan.whyItMatters}</div>
+                      </div>
+                    )}
+
+                    {plan?.projects?.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Project ideas</div>
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {plan.projects.map((p: any, i: number) => (
+                            <div key={i} style={{
+                              padding: "10px 14px",
+                              borderRadius: 10,
+                              background: "rgba(139,92,246,0.1)",
+                              border: "1px solid rgba(139,92,246,0.2)",
+                            }}>
+                              <div style={{ fontWeight: 800, color: "#a78bfa", fontSize: 13 }}>{p.name}</div>
+                              <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 13, marginTop: 3 }}>{p.description}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {plan?.keyPatterns?.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Key things to showcase</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {plan.keyPatterns.map((kp: string, i: number) => (
+                            <span key={i} style={{
+                              padding: "4px 10px",
+                              borderRadius: 999,
+                              background: "rgba(139,92,246,0.15)",
+                              border: "1px solid rgba(139,92,246,0.3)",
+                              color: "#a78bfa",
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}>{kp}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 6 }}>
+                      {plan?.estimatedTime && (
+                        <div>
+                          <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Est. build time</div>
+                          <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 13 }}>{plan.estimatedTime}</div>
+                        </div>
+                      )}
+                      {plan?.visibilityTip && (
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 12, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Visibility tip</div>
+                          <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 13 }}>{plan.visibilityTip}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         </ParallaxSection>
       )}
