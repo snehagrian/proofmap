@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import ParallaxSection from "@/components/ParallaxSection";
 import FloatingOrbs from "@/components/FloatingOrbs";
+
 
 export default function Home() {
   return (
@@ -18,7 +18,6 @@ export default function Home() {
           padding: "80px 24px",
           textAlign: "center",
         }}>
-          <ParallaxSection speed={0.3}>
             <div style={{ maxWidth: 1200 }}>
               <div style={{ marginBottom: 24 }}>
                 <span style={{
@@ -118,7 +117,6 @@ export default function Home() {
                 </div>
               </div> */}
             </div>
-          </ParallaxSection>
         </section>
 
         {/* Features Section */}
@@ -126,7 +124,6 @@ export default function Home() {
           padding: "100px 24px",
           background: "rgba(139, 92, 246, 0.02)",
         }}>
-          <ParallaxSection speed={0.2}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ textAlign: "center", marginBottom: 64 }}>
                 <h2 style={{
@@ -185,12 +182,10 @@ export default function Home() {
                 ))}
               </div>
             </div>
-          </ParallaxSection>
         </section>
 
         {/* Benefits Section */}
         <section style={{ padding: "100px 24px" }}>
-          <ParallaxSection speed={0.15}>
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{
                 display: "grid",
@@ -223,7 +218,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-          </ParallaxSection>
         </section>
 
         {/* CTA Section */}
@@ -232,7 +226,6 @@ export default function Home() {
           background: "linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(109, 40, 217, 0.05))",
           textAlign: "center",
         }}>
-          <ParallaxSection speed={0.25}>
             <div style={{ maxWidth: 800, margin: "0 auto" }}>
               <h2 style={{
                 fontSize: 48,
@@ -265,7 +258,6 @@ export default function Home() {
                 </button>
               </Link>
             </div>
-          </ParallaxSection>
         </section>
 
         {/* Footer */}

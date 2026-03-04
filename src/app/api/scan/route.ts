@@ -122,22 +122,6 @@ async function fetchBlobText(octokit: Octokit, owner: string, repo: string, sha:
   return Buffer.from(blob.data.content, "base64").toString("utf8");
 }
 
-async function checkRateLimit(octokit: Octokit) {
-  try {
-    const { data } = await octokit.rateLimit.get();
-    const remaining = data.rate.remaining;
-    const resetTime = new Date(data.rate.reset * 1000);
-    
-    if (remaining < 100) {
-      console.warn(`GitHub API rate limit low: ${remaining} requests remaining. Resets at ${resetTime.toISOString()}`);
-    }
-    
-    return { remaining, resetTime };
-  } catch {
-    return { remaining: -1, resetTime: new Date() };
-  }
-}
-
 function parsePackageJsonDeps(pkgText: string): Set<string> {
   try {
     const j = JSON.parse(pkgText);
@@ -383,14 +367,6 @@ export async function POST(req: Request) {
     const claimedSkills = extractClaimedSkills(resumeText);
 
     const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN || undefined });
-    
-    // Check rate limit early to provide better error messages
-    const rateLimit = await checkRateLimit(octokit);
-    if (rateLimit.remaining >= 0 && rateLimit.remaining < 50) {
-      return NextResponse.json({ 
-        error: `GitHub API rate limit too low (${rateLimit.remaining} remaining). Please try again after ${rateLimit.resetTime.toLocaleTimeString()}.` 
-      }, { status: 429 });
-    }
 
     let reposRes;
     try {
@@ -661,6 +637,9 @@ export async function POST(req: Request) {
   } catch (err: any) {
     const status = err?.status || 500;
     const message = err?.response?.data?.message || err?.message || "Unknown error";
+    if (status === 403 && message.toLowerCase().includes("rate limit")) {
+      return NextResponse.json({ error: "GitHub API rate limit exceeded. Please try again in a few minutes." }, { status: 429 });
+    }
     console.error(`[ProofMap] Scan failed: ${message}`, err);
     return NextResponse.json({ error: `Scan failed (${status}): ${message}` }, { status });
   }

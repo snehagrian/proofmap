@@ -9,7 +9,12 @@
 1. **Upload your resume** — Upload a PDF resume and enter your GitHub username.
 2. **Deep repository scan** — The app scans your public GitHub repos: code content, file structures, dependencies, and language usage.
 3. **Get your score** — Each claimed skill is scored and assigned a proficiency level (Beginner / Intermediate / Expert) along with a status (Good / Medium / Needs attention).
-4. **AI skill development plans (optional)** — If you configure an OpenAI API key, the app automatically generates personalized project ideas and learning paths for weak skills.
+4. **Select skills for recommendations** — Choose which missing/weak skills you want help with using checkboxes.
+5. **Generate AI recommendations** — Click "Generate Recommendations" to get personalized guidance (requires OpenAI API key):
+   - **Existing Project Analysis** — Determines if the skill can be integrated into your current projects
+   - **Enhancement Suggestions** — Specific ways to add the skill to existing repos
+   - **New Project Ideas** — Tailored project suggestions if existing integration isn't feasible
+   - **Implementation Guidance** — Technologies, patterns, and measurable outcomes
 
 ---
 
@@ -20,15 +25,15 @@
 - Detects 25+ skills across languages, frameworks, databases, and DevOps tools
 - Hybrid scoring: GitHub Linguist language stats + code pattern recognition
 - Proficiency detection based on advanced API/pattern usage (Beginner / Intermediate / Expert)
-- Parallel repo processing with early termination for performance
 - Smart file prioritization (configs and entry points first)
 - Excludes generated, minified, and bundled files from analysis
 - Animated UI with floating orbs and parallax scrolling
-- **AI-powered skill development plans** (optional, requires OpenAI API key)
-  - Automatically generated for weak skills during analysis
-  - Personalized project suggestions tailored to your GitHub profile
-  - Key patterns to showcase in code
-  - Estimated build time and visibility tips
+- **On-demand AI recommendations** (optional, requires OpenAI API key)
+  - Select specific skills to get recommendations for
+  - Analyzes existing projects for integration opportunities
+  - Provides both enhancement suggestions and new project ideas
+  - Includes implementation guidance with technologies, patterns, and outcomes
+  - Intelligent prioritization (enhance vs. build new)
 
 ### Tracked Skills
 
@@ -165,7 +170,7 @@ Scans a GitHub user's repositories and validates skills extracted from resume te
 
 ### `POST /api/ai-suggestions` (Optional)
 
-Generates AI-powered skill development plans. Only works if `OPENAI_API_KEY` is configured.
+Generates AI-powered skill recommendations with existing project analysis. Only works if `OPENAI_API_KEY` is configured.
 
 **Request body:**
 
@@ -173,7 +178,8 @@ Generates AI-powered skill development plans. Only works if `OPENAI_API_KEY` is 
 {
   "skills": ["Docker", "CI/CD"],
   "githubUsername": "octocat",
-  "breakdown": [...]
+  "breakdown": [...],
+  "existingRepos": ["backend-api", "frontend-app"]
 }
 ```
 
@@ -185,13 +191,35 @@ Generates AI-powered skill development plans. Only works if `OPENAI_API_KEY` is 
     {
       "skill": "Docker",
       "plan": {
-        "whyItMatters": "Containerization is essential for modern deployment workflows",
-        "projects": [
-          { "name": "Containerized API", "description": "Dockerize your REST API with multi-stage builds" }
+        "existingProjectAnalysis": {
+          "canBeIntegrated": true,
+          "reasoning": "Your backend-api project can benefit from containerization",
+          "enhancementSuggestions": [
+            {
+              "targetProject": "backend-api",
+              "enhancement": "Add multi-stage Dockerfile with production optimizations",
+              "implementation": "Create Dockerfile with build and runtime stages...",
+              "skillDemonstration": "Shows production-ready containerization skills",
+              "estimatedEffort": "4-6 hours"
+            }
+          ]
+        },
+        "newProjectIdeas": [
+          {
+            "name": "Microservice Template",
+            "description": "Production-ready containerized microservice boilerplate",
+            "keyFeatures": ["Multi-stage builds", "Health checks", "Security scanning"],
+            "skillFocus": "Demonstrates Docker best practices and orchestration",
+            "estimatedTime": "1-2 weekends"
+          }
         ],
-        "keyPatterns": ["Dockerfile", "docker-compose.yml", "multi-stage builds"],
-        "estimatedTime": "1-2 weekends",
-        "visibilityTip": "Add Docker badge to README and document setup"
+        "implementationGuidance": {
+          "technologies": ["Docker", "docker-compose", "Docker Scout"],
+          "architecturePatterns": ["Multi-stage builds", "Layer caching"],
+          "measurableOutcomes": ["Image size < 100MB", "Build time < 2min"],
+          "visibilityTips": ["Add Dockerfile to repo root", "Document in README"]
+        },
+        "priorityRecommendation": "existing-enhancement"
       }
     }
   ]
