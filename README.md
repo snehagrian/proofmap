@@ -9,7 +9,7 @@
 1. **Upload your resume** — Upload a PDF resume and enter your GitHub username.
 2. **Deep repository scan** — The app scans your public GitHub repos: code content, file structures, dependencies, and language usage.
 3. **Get your score** — Each claimed skill is scored and assigned a proficiency level (Beginner / Intermediate / Expert) along with a status (Good / Medium / Needs attention).
-4. **Set goals for gaps** — Select missing or low-scoring skills to receive tailored project ideas and integration suggestions to build GitHub proof.
+4. **AI skill development plans (optional)** — If you configure an OpenAI API key, the app automatically generates personalized project ideas and learning paths for weak skills.
 
 ---
 
@@ -23,8 +23,12 @@
 - Parallel repo processing with early termination for performance
 - Smart file prioritization (configs and entry points first)
 - Excludes generated, minified, and bundled files from analysis
-- Collapsible per-skill project breakdown in results
 - Animated UI with floating orbs and parallax scrolling
+- **AI-powered skill development plans** (optional, requires OpenAI API key)
+  - Automatically generated for weak skills during analysis
+  - Personalized project suggestions tailored to your GitHub profile
+  - Key patterns to showcase in code
+  - Estimated build time and visibility tips
 
 ### Tracked Skills
 
@@ -49,6 +53,7 @@
 | UI | React 19, Tailwind CSS v4 |
 | GitHub API | @octokit/rest |
 | PDF Parsing | PDF.js (CDN) |
+| AI (Optional) | OpenAI GPT-4o mini |
 | Charts | Recharts |
 | Compiler | React Compiler (babel-plugin-react-compiler) |
 
@@ -67,11 +72,11 @@ src/
     api/
       scan/
         route.ts          # Backend API: GitHub scan + skill scoring
+      ai-suggestions/
+        route.ts          # AI-powered skill development plans (optional)
   components/
     FloatingOrbs.tsx      # Animated background orbs
     ParallaxSection.tsx   # Parallax scroll wrapper
-  lib/
-    suggestions.ts        # Goal generation + integration suggestions
 ```
 
 ---
@@ -97,7 +102,16 @@ Create a `.env.local` file in the project root:
 
 ```env
 GITHUB_TOKEN=your_github_personal_access_token
+
+# Optional: Enable AI-powered skill development suggestions
+OPENAI_API_KEY=your_openai_api_key
 ```
+
+**AI Features (Optional):**
+- If `OPENAI_API_KEY` is configured, the app will automatically generate personalized skill development plans for weak skills (score < 25)
+- AI suggestions include project ideas, key patterns to showcase, estimated build time, and visibility tips
+- If the API key is not set, the app works perfectly fine with just GitHub-based analysis
+- Great for showcasing: deploy without AI for free, let developers enable it locally
 
 ### Running Locally
 
@@ -136,7 +150,7 @@ Scans a GitHub user's repositories and validates skills extracted from resume te
 ```json
 {
   "overallScore": 72,
-  "skills": [
+  "breakdown": [
     {
       "skill": "React",
       "score": 85,
@@ -145,7 +159,42 @@ Scans a GitHub user's repositories and validates skills extracted from resume te
       "repos": ["my-app", "portfolio"]
     }
   ],
-  "missingSkills": ["Docker", "CI/CD"]
+  "missingProof": ["Docker", "CI/CD"]
+}
+```
+
+### `POST /api/ai-suggestions` (Optional)
+
+Generates AI-powered skill development plans. Only works if `OPENAI_API_KEY` is configured.
+
+**Request body:**
+
+```json
+{
+  "skills": ["Docker", "CI/CD"],
+  "githubUsername": "octocat",
+  "breakdown": [...]
+}
+```
+
+**Response:**
+
+```json
+{
+  "suggestions": [
+    {
+      "skill": "Docker",
+      "plan": {
+        "whyItMatters": "Containerization is essential for modern deployment workflows",
+        "projects": [
+          { "name": "Containerized API", "description": "Dockerize your REST API with multi-stage builds" }
+        ],
+        "keyPatterns": ["Dockerfile", "docker-compose.yml", "multi-stage builds"],
+        "estimatedTime": "1-2 weekends",
+        "visibilityTip": "Add Docker badge to README and document setup"
+      }
+    }
+  ]
 }
 ```
 

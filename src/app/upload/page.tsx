@@ -43,14 +43,8 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMissing, setSelectedMissing] = useState<string[]>([]);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planResult, setPlanResult] = useState<any>(null);
-  // Track open/closed state for per-skill collapsible project lists
-  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
 
-  // AI mode – when on, OpenAI generates richer skill-development suggestions
-  const [aiMode, setAiMode] = useState(false);
+  // AI suggestions – automatically fetched if OPENAI_API_KEY is configured
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, any>>({});
   const [aiSuggestionsLoading, setAiSuggestionsLoading] = useState(false);
 
@@ -130,37 +124,34 @@ export default function UploadPage() {
 
       setResult(data);
 
-      // If AI mode is on, immediately fetch AI suggestions for all missing skills
-      if (aiMode) {
-        const missingSkills = (data.breakdown ?? [])
-          .filter((x: any) => clamp01(Number(x.score ?? 0)) < 25)
-          .map((x: any) => x.skill);
+      // Automatically fetch AI suggestions for missing skills (if OPENAI_API_KEY is configured)
+      const missingSkills = (data.breakdown ?? [])
+        .filter((x: any) => clamp01(Number(x.score ?? 0)) < 25)
+        .map((x: any) => x.skill);
 
-        if (missingSkills.length > 0) {
-          setAiSuggestionsLoading(true);
-          try {
-            const aiRes = await fetch("/api/ai-suggestions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                skills: missingSkills,
-                githubUsername: githubUsername.trim(),
-                breakdown: data.breakdown,
-              }),
-            });
-            const aiData = await aiRes.json();
-            if (aiRes.ok && Array.isArray(aiData.suggestions)) {
-              const map: Record<string, any> = {};
-              for (const s of aiData.suggestions) map[s.skill] = s.plan;
-              setAiSuggestions(map);
-            } else {
-              setError(aiData?.error || "AI suggestions failed.");
-            }
-          } catch (aiErr: any) {
-            setError(aiErr?.message || "AI suggestions request failed.");
+      if (missingSkills.length > 0) {
+        setAiSuggestionsLoading(true);
+        try {
+          const aiRes = await fetch("/api/ai-suggestions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              skills: missingSkills,
+              githubUsername: githubUsername.trim(),
+              breakdown: data.breakdown,
+            }),
+          });
+          const aiData = await aiRes.json();
+          if (aiRes.ok && Array.isArray(aiData.suggestions)) {
+            const map: Record<string, any> = {};
+            for (const s of aiData.suggestions) map[s.skill] = s.plan;
+            setAiSuggestions(map);
           }
-          setAiSuggestionsLoading(false);
+          // Silently ignore AI errors (API key might not be configured)
+        } catch (aiErr: any) {
+          // Silently ignore AI errors (API key might not be configured)
         }
+        setAiSuggestionsLoading(false);
       }
     } catch (e: any) {
       setLoading(false);
@@ -168,42 +159,7 @@ export default function UploadPage() {
     }
   }
 
-  async function onGeneratePlan() {
-    if (!result) return;
-    if (selectedMissing.length === 0) return setError("Select at least one missing skill to generate a plan.");
 
-    setError(null);
-    setPlanLoading(true);
-    setPlanResult(null);
-
-    try {
-      // Reuse same resumeText and githubUsername to request an action plan
-      const resumeText = await extractTextFromPdfInBrowser(file!);
-
-      const res = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          githubUsername: githubUsername.trim(),
-          resumeText,
-          selectedSkills: selectedMissing,
-        }),
-      });
-
-      const data = await res.json();
-      setPlanLoading(false);
-
-      if (!res.ok) {
-        setError(data?.error || "Failed to generate plan.");
-        return;
-      }
-
-      setPlanResult(data);
-    } catch (e: any) {
-      setPlanLoading(false);
-      setError(e?.message || "Failed to generate plan.");
-    }
-  }
 
   return (
     <>
@@ -362,26 +318,6 @@ export default function UploadPage() {
                   }}
                 >
                   {loading ? "🔍 Analyzing..." : "🚀 Analyze My Skills"}
-                </button>
-
-                {/* ✨ AI Mode Toggle */}
-                <button
-                  onClick={() => { setAiMode((m) => !m); setAiSuggestions({}); }}
-                  title={aiMode ? "Disable AI-powered suggestions" : "Enable AI-powered suggestions"}
-                  style={{
-                    padding: "16px 20px",
-                    borderRadius: 12,
-                    border: aiMode ? "2px solid rgba(168, 85, 247, 0.65)" : "2px solid rgba(139, 92, 246, 0.3)",
-                    background: aiMode ? "rgba(168, 85, 247, 0.15)" : "rgba(139, 92, 246, 0.05)",
-                    color: aiMode ? "#c084fc" : "rgba(230, 238, 248, 0.6)",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    transition: "all 0.25s ease",
-                    fontSize: 15,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {aiMode ? "✨ AI ON" : "✨ AI Mode"}
                 </button>
               </div>
 
@@ -602,14 +538,10 @@ export default function UploadPage() {
                   .map((x: any) => {
                     const score = clamp01(Number(x.score ?? 0));
                     const c = getColor(score);
-                    const checked = selectedMissing.includes(x.skill);
                     return (
-                      <label
+                      <div
                         key={x.skill}
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 8,
                           padding: "6px 10px",
                           borderRadius: 999,
                           background: c.bg,
@@ -617,227 +549,15 @@ export default function UploadPage() {
                           color: c.text,
                           fontWeight: 900,
                           fontSize: 12,
-                          cursor: "pointer",
                         }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            setSelectedMissing((prev) => {
-                              if (e.target.checked) return [...prev, x.skill];
-                              return prev.filter((s) => s !== x.skill);
-                            });
-                          }}
-                        />
-                        <span>{x.skill} · {score}%</span>
-                      </label>
+                        {x.skill} · {score}%
+                      </div>
                     );
                   })}
               </div>
             </div>
           </div>
-
-          <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={onGeneratePlan}
-              disabled={planLoading || selectedMissing.length === 0}
-              className="pm-btn"
-              style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "none",
-                background: selectedMissing.length
-                  ? "linear-gradient(135deg, #8b5cf6, #7c3aed)"
-                  : "rgba(139, 92, 246, 0.2)",
-                color: "white",
-                fontWeight: 800,
-                cursor: (planLoading || !selectedMissing.length) ? "not-allowed" : "pointer",
-                boxShadow: selectedMissing.length ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
-              }}
-            >
-              {planLoading ? "Generating…" : "Generate Plan"}
-            </button>
-          </div>
-
-          {planResult && (
-            <div style={{ marginTop: 18 }}>
-              <div className="pm-card" style={{ padding: 16 }}>
-                <div style={{ fontWeight: 900, marginBottom: 8, color: "#e6eef8" }}>Action Plan</div>
-
-                {(planResult.actionPlan ?? []).map((p: any, pidx: number) => {
-                  const open = !!openMap[p.skill];
-                  const summaryRaw = String(p.summary || "").trim();
-                  const summary = summaryRaw ? (/[.?!]$/.test(summaryRaw) ? summaryRaw : summaryRaw + '.') : '';
-
-                  return (
-                    <div key={p.skill} style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ flex: 1, paddingRight: 12 }}>
-                          <div style={{ fontWeight: 800, color: "#c084fc" }}>{p.skill}</div>
-                          {summary && <div style={{ marginTop: 8, color: 'rgba(230, 238, 248, 0.8)' }}>{summary}</div>}
-
-                          <div style={{ marginTop: 6 }}>
-                            {p.candidateExists ? (
-                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', fontWeight: 900, fontSize: 13 }}>
-                                this skill can be used in your GitHub Projects
-                              </div>
-                            ) : (
-                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontWeight: 900, fontSize: 13 }}>
-                                this skill cannot be used in your Github Projects. But I can give you additional project suggestions.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          className="pm-btn pm-btn-ghost"
-                          onClick={() => setOpenMap((m) => ({ ...m, [p.skill]: !m[p.skill] }))}
-                          aria-expanded={open}
-                        >
-                          <span className={`pm-chevron ${open ? 'open' : ''}`}>›</span>
-                          <span style={{ marginLeft: 8 }}>{open ? (p.candidateExists ? 'Hide guidance' : 'Hide projects') : (p.candidateExists ? 'Repo guidance' : 'Project ideas')}</span>
-                        </button>
-                      </div>
-
-                      <div className={`pm-collapsible ${open ? 'expanded' : 'collapsed'}`} aria-hidden={!open}>
-                        <div style={{ marginTop: 12, color: 'rgba(230, 238, 248, 0.8)' }}>
-                          {p.candidateExists ? (
-                            // Repo guidance path — concise paragraph (no code snippets)
-                            <div>
-                              {p.usage && (
-                                <div style={{ marginBottom: 8 }}>
-                                  {String(p.usage).trim().replace(/\s+/g, ' ')}{(/[.?!]$/.test(String(p.usage).trim()) ? '' : '.')} 
-                                </div>
-                              )}
-
-                              <div style={{ marginTop: 6, color: 'rgba(230, 238, 248, 0.8)' }}>
-                                To make this skill clearly provable on GitHub, provide a short, runnable example that exercises the capability end‑to‑end and make it easy to find from the repository README. Document the single command(s) needed to run the example and the exact expected output so reviewers can reproduce the result quickly, and add a lightweight automated check (one focused test or a minimal CI job) so the repository shows a passing status. Keep the demo and instructions minimal and secret‑free so anyone can verify your claim in under a minute.
-                              </div>
-                            </div>
-                          ) : (
-                            // Project ideas path — numbered project list and three-step plans directly under each project
-                            <div>
-                              <div style={{ fontWeight: 700, marginBottom: 8, color: "#e6eef8" }}>Recommended projects to demonstrate this skill</div>
-
-                              {(p.ideas && p.ideas.length > 0) ? (
-                                <ol style={{ marginLeft: 18 }}>
-                                  {p.ideas.map((idea: string, idx: number) => {
-                                    const plan = (p.projectPlans && p.projectPlans[idea]) || [];
-                                    return (
-                                      <li key={idx} style={{ marginTop: 10, color: 'rgba(230, 238, 248, 0.8)' }}>
-                                        <div style={{ fontWeight: 800, color: "#a78bfa" }}>{idea}</div>
-
-                                        {(plan && plan.length > 0) ? (
-                                          <ol style={{ marginLeft: 18, marginTop: 8 }}>
-                                            {plan.map((step: string, sidx: number) => {
-                                              const trimmed = String(step || '').trim();
-                                              if (!trimmed) return null;
-                                              // Ensure first letter is capitalized and sentence ends with a period.
-                                              const s = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).replace(/\s+/g, ' ');
-                                              const sentence = /[.?!]$/.test(s) ? s : s + '.';
-                                              return (
-                                                <li key={sidx} style={{ marginTop: 6 }}>{sentence}</li>
-                                              );
-                                            })}
-                                          </ol>
-                                        ) : null}
-                                      </li>
-                                    );
-                                  })}
-                                </ol>
-                              ) : (
-                                <div style={{ fontStyle: 'italic', color: 'rgba(230, 238, 248, 0.6)' }}>No project ideas available — try selecting a different skill.</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* ✨ AI Suggestions Panel – visible when AI mode is active */}
-                      {aiMode && aiSuggestions[p.skill] && (() => {
-                        const plan = aiSuggestions[p.skill];
-                        return (
-                          <div style={{
-                            marginTop: 14,
-                            padding: "18px 20px",
-                            borderRadius: 12,
-                            background: "rgba(168, 85, 247, 0.09)",
-                            border: "1px solid rgba(168, 85, 247, 0.35)",
-                          }}>
-                            <div style={{ fontWeight: 900, color: "#c084fc", marginBottom: 12, fontSize: 14 }}>
-                              ✨ AI Development Plan
-                            </div>
-                            {plan?.whyItMatters && (
-                              <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>Why it matters</div>
-                                <div style={{ color: "rgba(230,238,248,0.85)", fontSize: 13, lineHeight: 1.7 }}>{plan.whyItMatters}</div>
-                              </div>
-                            )}
-                            {plan?.projects?.length > 0 && (
-                              <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Project ideas</div>
-                                <div style={{ display: "grid", gap: 6 }}>
-                                  {plan.projects.map((proj: any, i: number) => (
-                                    <div key={i} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.2)" }}>
-                                      <div style={{ fontWeight: 800, color: "#a78bfa", fontSize: 12 }}>{proj.name}</div>
-                                      <div style={{ color: "rgba(230,238,248,0.7)", fontSize: 12, marginTop: 2 }}>{proj.description}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {plan?.keyPatterns?.length > 0 && (
-                              <div style={{ marginBottom: 10 }}>
-                                <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Key patterns</div>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                                  {plan.keyPatterns.map((kp: string, i: number) => (
-                                    <span key={i} style={{ padding: "3px 9px", borderRadius: 999, background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#a78bfa", fontSize: 11, fontWeight: 700 }}>{kp}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 4 }}>
-                              {plan?.estimatedTime && (
-                                <div>
-                                  <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Est. time</div>
-                                  <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 12 }}>{plan.estimatedTime}</div>
-                                </div>
-                              )}
-                              {plan?.visibilityTip && (
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Visibility tip</div>
-                                  <div style={{ color: "rgba(230,238,248,0.75)", fontSize: 12 }}>{plan.visibilityTip}</div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                      {aiMode && aiSuggestionsLoading && !aiSuggestions[p.skill] && (
-                        <div style={{
-                          marginTop: 14,
-                          padding: "12px 16px",
-                          borderRadius: 12,
-                          background: "rgba(168, 85, 247, 0.05)",
-                          border: "1px solid rgba(168, 85, 247, 0.2)",
-                          color: "#a78bfa",
-                          fontSize: 14,
-                        }}>
-                          ✨ Generating AI suggestions…
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                <div style={{ marginTop: 12, color: 'rgba(230, 238, 248, 0.8)' }}>
-                  <div style={{ fontWeight: 900, marginBottom: 6, color: "#e6eef8" }}>Suggestions shown only for selected skills</div>
-                  <div>Select one or more missing skills above and click <b>Generate Plan</b> to get per-skill project ideas and availability guidance.</div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div
             style={{
@@ -882,8 +602,8 @@ export default function UploadPage() {
               );
             })()}
           </div>
-          {/* ✨ AI Skill Development Plans – shown automatically when AI mode is on */}
-          {aiMode && (Object.keys(aiSuggestions).length > 0 || aiSuggestionsLoading) && (
+          {/* ✨ AI Skill Development Plans – shown when available */}
+          {(Object.keys(aiSuggestions).length > 0 || aiSuggestionsLoading) && (
             <div style={{ marginTop: 20 }}>
               <div style={{ fontWeight: 900, color: "#c084fc", marginBottom: 14, fontSize: 17, display: "flex", alignItems: "center", gap: 10 }}>
                 ✨ AI Skill Development Plans
