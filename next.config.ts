@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  compress: true,
+  experimental: {
+    optimizePackageImports: ["@octokit/rest", "openai"],
+  },
 };
 
 export default nextConfig;

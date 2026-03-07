@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import ParallaxSection from "@/components/ParallaxSection";
 import FloatingOrbs from "@/components/FloatingOrbs";
 
 declare global {
@@ -43,11 +42,23 @@ export default function UploadPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Skill selection for recommendations
   const [selectedMissing, setSelectedMissing] = useState<string[]>([]);
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planResult, setPlanResult] = useState<any>(null);
-  // Track open/closed state for per-skill collapsible project lists
-  const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+  
+  // AI key availability
+  const [aiKeyAvailable, setAiKeyAvailable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ai-suggestions")
+      .then((r) => r.json())
+      .then((d) => setAiKeyAvailable(!!d.hasKey))
+      .catch(() => setAiKeyAvailable(false));
+  }, []);
+
+  // AI suggestions – generated on-demand, grouped where possible
+  const [aiSuggestions, setAiSuggestions] = useState<{ groups: any[]; individual: any[] } | null>(null);
+  const [aiSuggestionsLoading, setAiSuggestionsLoading] = useState(false);
 
   // ✅ Load PDF.js from CDN so Next never bundles it
   async function loadPdfJsFromCdn(): Promise<any> {
@@ -101,6 +112,7 @@ export default function UploadPage() {
     setError(null);
     setLoading(true);
     setResult(null);
+    setAiSuggestions(null);
 
     try {
       const resumeText = await extractTextFromPdfInBrowser(file);
@@ -123,46 +135,54 @@ export default function UploadPage() {
       }
 
       setResult(data);
+      // Reset selections and AI suggestions for new scan
+      setSelectedMissing([]);
+      setAiSuggestions(null);
     } catch (e: any) {
       setLoading(false);
       setError(e?.message || "Failed to read the PDF.");
     }
   }
 
-  async function onGeneratePlan() {
+  async function onGenerateRecommendations() {
     if (!result) return;
-    if (selectedMissing.length === 0) return setError("Select at least one missing skill to generate a plan.");
+    if (selectedMissing.length === 0) {
+      return setError("Please select at least one skill to get recommendations.");
+    }
 
     setError(null);
-    setPlanLoading(true);
-    setPlanResult(null);
+    setAiSuggestions(null);
+    setAiSuggestionsLoading(true);
 
     try {
-      // Reuse same resumeText and githubUsername to request an action plan
-      const resumeText = await extractTextFromPdfInBrowser(file!);
-
-      const res = await fetch("/api/scan", {
+      const aiRes = await fetch("/api/ai-suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          skills: selectedMissing,
           githubUsername: githubUsername.trim(),
-          resumeText,
-          selectedSkills: selectedMissing,
+          breakdown: result.breakdown,
+          existingRepos: result.breakdown
+            .filter((b: any) => b.repos && b.repos.length > 0)
+            .flatMap((b: any) => b.repos)
+            .filter((r: string, i: number, arr: string[]) => arr.indexOf(r) === i),
         }),
       });
 
-      const data = await res.json();
-      setPlanLoading(false);
+      const aiData = await aiRes.json();
 
-      if (!res.ok) {
-        setError(data?.error || "Failed to generate plan.");
-        return;
+      if (aiRes.ok && (Array.isArray(aiData.groups) || Array.isArray(aiData.individual))) {
+        setAiSuggestions({
+          groups: aiData.groups ?? [],
+          individual: aiData.individual ?? [],
+        });
+      } else {
+        setError(aiData?.error || "Failed to generate recommendations.");
       }
-
-      setPlanResult(data);
-    } catch (e: any) {
-      setPlanLoading(false);
-      setError(e?.message || "Failed to generate plan.");
+    } catch (aiErr: any) {
+      setError(aiErr?.message || "Failed to generate recommendations.");
+    } finally {
+      setAiSuggestionsLoading(false);
     }
   }
 
@@ -181,20 +201,46 @@ export default function UploadPage() {
                 ProofMap
               </div>
             </Link>
-            <Link href="/">
-              <button style={{
-                padding: "10px 20px",
-                borderRadius: 8,
-                border: "1px solid rgba(139, 92, 246, 0.3)",
-                background: "transparent",
-                color: "#e6eef8",
-                fontWeight: 700,
-                cursor: "pointer",
-                fontSize: 14,
-              }}>
-                ← Back to Home
-              </button>
-            </Link>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <a
+                href="https://github.com/snehagrian/proofmap"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "9px 18px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                  background: "transparent",
+                  color: "#e6eef8",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+              >
+                <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+                GitHub
+              </a>
+              <Link href="/">
+                <button style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                  background: "transparent",
+                  color: "#e6eef8",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontSize: 14,
+                }}>
+                  ← Back to Home
+                </button>
+              </Link>
+            </div>
           </div>
         </header>
 
@@ -303,25 +349,28 @@ export default function UploadPage() {
                 </label>
               </div>
 
-              <button
-                onClick={onScan}
-                disabled={loading}
-                className="pm-btn"
-                style={{
-                  padding: "16px 32px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: loading ? "rgba(139, 92, 246, 0.5)" : "linear-gradient(135deg, #8b5cf6, #7c3aed)",
-                  color: "white",
-                  fontWeight: 800,
-                  fontSize: 18,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  boxShadow: loading ? "none" : "0 8px 20px rgba(139, 92, 246, 0.4)",
-                  transition: "all 0.3s ease",
-                }}
-              >
-                {loading ? "🔍 Analyzing..." : "🚀 Analyze My Skills"}
-              </button>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <button
+                  onClick={onScan}
+                  disabled={loading}
+                  className="pm-btn"
+                  style={{
+                    flex: 1,
+                    padding: "16px 32px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: loading ? "rgba(139, 92, 246, 0.5)" : "linear-gradient(135deg, #8b5cf6, #7c3aed)",
+                    color: "white",
+                    fontWeight: 800,
+                    fontSize: 18,
+                    cursor: loading ? "not-allowed" : "pointer",
+                    boxShadow: loading ? "none" : "0 8px 20px rgba(139, 92, 246, 0.4)",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  {loading ? "🔍 Analyzing..." : "🚀 Analyze My Skills"}
+                </button>
+              </div>
 
               {error && (
                 <div style={{ 
@@ -343,7 +392,6 @@ export default function UploadPage() {
           </div>
 
       {result && (
-        <ParallaxSection speed={0.2}>
         <div className="pm-card" style={{ marginTop: 28, padding: 20 }}>          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 900, color: "#e6eef8" }}>Overall Skill Reality Score</div>
@@ -531,9 +579,37 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="pm-card" style={{ padding: 14 }}>
-              <div style={{ fontWeight: 950, color: "#e6eef8" }}>⚠️ Skills not present (missing proof)</div>
-              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div className="pm-card" style={{ padding: 16 }}>
+              {/* Header row */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
+                <div style={{ fontWeight: 950, color: "#e6eef8", fontSize: 14 }}>⚠️ Skills not present <span style={{ color: "rgba(230,238,248,0.45)", fontWeight: 600, fontSize: 12 }}>(missing proof)</span></div>
+                {(() => {
+                  const weakSkills = (result.breakdown ?? []).filter((x: any) => clamp01(Number(x.score ?? 0)) < 25).map((x: any) => x.skill);
+                  const allSelected = weakSkills.length > 0 && weakSkills.every((s: string) => selectedMissing.includes(s));
+                  return weakSkills.length > 0 ? (
+                    <button
+                      onClick={() => setSelectedMissing(allSelected ? [] : weakSkills)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: allSelected ? "rgba(239,68,68,0.7)" : "#a78bfa",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        transition: "color 150ms ease",
+                      }}
+                    >
+                      {allSelected ? "✕ Deselect all" : "✓ Select all"}
+                    </button>
+                  ) : null;
+                })()}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(230, 238, 248, 0.5)", marginBottom: 12 }}>
+                Tap skills to select, then generate AI-powered recommendations
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {(result.breakdown ?? [])
                   .filter((x: any) => clamp01(Number(x.score ?? 0)) < 25)
                   .sort((a: any, b: any) => (a.score ?? 0) - (b.score ?? 0))
@@ -542,162 +618,79 @@ export default function UploadPage() {
                     const c = getColor(score);
                     const checked = selectedMissing.includes(x.skill);
                     return (
-                      <label
+                      <button
                         key={x.skill}
+                        type="button"
+                        onClick={() =>
+                          setSelectedMissing((prev) =>
+                            checked ? prev.filter((s) => s !== x.skill) : [...prev, x.skill]
+                          )
+                        }
+                        className={`pm-skill-chip${checked ? " selected" : ""}`}
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 8,
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          background: c.bg,
-                          border: `1px solid ${c.border}`,
+                          background: checked ? c.bg.replace("0.15", "0.28") : c.bg,
+                          border: `2px solid ${checked ? c.text : c.border}`,
                           color: c.text,
-                          fontWeight: 900,
-                          fontSize: 12,
-                          cursor: "pointer",
+                          boxShadow: checked ? `0 4px 14px ${c.border}` : "none",
                         }}
                       >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            setSelectedMissing((prev) => {
-                              if (e.target.checked) return [...prev, x.skill];
-                              return prev.filter((s) => s !== x.skill);
-                            });
-                          }}
-                        />
-                        <span>{x.skill} · {score}%</span>
-                      </label>
+                        <span className="pm-chip-dot">{checked ? "✓" : ""}</span>
+                        <span>{x.skill}</span>
+                        <span style={{ opacity: 0.55, fontWeight: 600, fontSize: 11 }}>{score}%</span>
+                      </button>
                     );
                   })}
               </div>
             </div>
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <button
-              onClick={onGeneratePlan}
-              disabled={planLoading || selectedMissing.length === 0}
-              className="pm-btn"
-              style={{
-                padding: "12px 24px",
-                borderRadius: 10,
-                border: "none",
-                background: selectedMissing.length ? "linear-gradient(135deg, #8b5cf6, #7c3aed)" : "rgba(139, 92, 246, 0.2)",
-                color: "white",
-                fontWeight: 800,
-                cursor: selectedMissing.length ? "pointer" : "not-allowed",
-                boxShadow: selectedMissing.length ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
-              }}
-            >
-              {planLoading ? "Generating..." : "Generate Plan"}
-            </button>
-          </div>
-
-          {planResult && (
+          {/* Generate Recommendations Button */}
+          {(result.breakdown ?? []).filter((x: any) => clamp01(Number(x.score ?? 0)) < 25).length > 0 && (
             <div style={{ marginTop: 18 }}>
-              <div className="pm-card" style={{ padding: 16 }}>
-                <div style={{ fontWeight: 900, marginBottom: 8, color: "#e6eef8" }}>Action Plan</div>
-
-                {(planResult.actionPlan ?? []).map((p: any, pidx: number) => {
-                  const open = !!openMap[p.skill];
-                  const summaryRaw = String(p.summary || "").trim();
-                  const summary = summaryRaw ? (/[.?!]$/.test(summaryRaw) ? summaryRaw : summaryRaw + '.') : '';
-
-                  return (
-                    <div key={p.skill} style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ flex: 1, paddingRight: 12 }}>
-                          <div style={{ fontWeight: 800, color: "#c084fc" }}>{p.skill}</div>
-                          {summary && <div style={{ marginTop: 8, color: 'rgba(230, 238, 248, 0.8)' }}>{summary}</div>}
-
-                          <div style={{ marginTop: 6 }}>
-                            {p.candidateExists ? (
-                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#86efac', fontWeight: 900, fontSize: 13 }}>
-                                this skill can be used in your GitHub Projects
-                              </div>
-                            ) : (
-                              <div style={{ display: 'inline-block', padding: '6px 10px', borderRadius: 999, background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', fontWeight: 900, fontSize: 13 }}>
-                                this skill cannot be used in your Github Projects. But I can give you additional project suggestions.
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          className="pm-btn pm-btn-ghost"
-                          onClick={() => setOpenMap((m) => ({ ...m, [p.skill]: !m[p.skill] }))}
-                          aria-expanded={open}
-                        >
-                          <span className={`pm-chevron ${open ? 'open' : ''}`}>›</span>
-                          <span style={{ marginLeft: 8 }}>{open ? (p.candidateExists ? 'Hide guidance' : 'Hide projects') : (p.candidateExists ? 'Repo guidance' : 'Project ideas')}</span>
-                        </button>
-                      </div>
-
-                      <div className={`pm-collapsible ${open ? 'expanded' : 'collapsed'}`} aria-hidden={!open}>
-                        <div style={{ marginTop: 12, color: 'rgba(230, 238, 248, 0.8)' }}>
-                          {p.candidateExists ? (
-                            // Repo guidance path — concise paragraph (no code snippets)
-                            <div>
-                              {p.usage && (
-                                <div style={{ marginBottom: 8 }}>
-                                  {String(p.usage).trim().replace(/\s+/g, ' ')}{(/[.?!]$/.test(String(p.usage).trim()) ? '' : '.')} 
-                                </div>
-                              )}
-
-                              <div style={{ marginTop: 6, color: 'rgba(230, 238, 248, 0.8)' }}>
-                                To make this skill clearly provable on GitHub, provide a short, runnable example that exercises the capability end‑to‑end and make it easy to find from the repository README. Document the single command(s) needed to run the example and the exact expected output so reviewers can reproduce the result quickly, and add a lightweight automated check (one focused test or a minimal CI job) so the repository shows a passing status. Keep the demo and instructions minimal and secret‑free so anyone can verify your claim in under a minute.
-                              </div>
-                            </div>
-                          ) : (
-                            // Project ideas path — numbered project list and three-step plans directly under each project
-                            <div>
-                              <div style={{ fontWeight: 700, marginBottom: 8, color: "#e6eef8" }}>Recommended projects to demonstrate this skill</div>
-
-                              {(p.ideas && p.ideas.length > 0) ? (
-                                <ol style={{ marginLeft: 18 }}>
-                                  {p.ideas.map((idea: string, idx: number) => {
-                                    const plan = (p.projectPlans && p.projectPlans[idea]) || [];
-                                    return (
-                                      <li key={idx} style={{ marginTop: 10, color: 'rgba(230, 238, 248, 0.8)' }}>
-                                        <div style={{ fontWeight: 800, color: "#a78bfa" }}>{idea}</div>
-
-                                        {(plan && plan.length > 0) ? (
-                                          <ol style={{ marginLeft: 18, marginTop: 8 }}>
-                                            {plan.map((step: string, sidx: number) => {
-                                              const trimmed = String(step || '').trim();
-                                              if (!trimmed) return null;
-                                              // Ensure first letter is capitalized and sentence ends with a period.
-                                              const s = trimmed.charAt(0).toUpperCase() + trimmed.slice(1).replace(/\s+/g, ' ');
-                                              const sentence = /[.?!]$/.test(s) ? s : s + '.';
-                                              return (
-                                                <li key={sidx} style={{ marginTop: 6 }}>{sentence}</li>
-                                              );
-                                            })}
-                                          </ol>
-                                        ) : null}
-                                      </li>
-                                    );
-                                  })}
-                                </ol>
-                              ) : (
-                                <div style={{ fontStyle: 'italic', color: 'rgba(230, 238, 248, 0.6)' }}>No project ideas available — try selecting a different skill.</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div style={{ marginTop: 12, color: 'rgba(230, 238, 248, 0.8)' }}>
-                  <div style={{ fontWeight: 900, marginBottom: 6, color: "#e6eef8" }}>Suggestions shown only for selected skills</div>
-                  <div>Select one or more missing skills above and click <b>Generate Plan</b> to get per-skill project ideas and availability guidance.</div>
+              {aiKeyAvailable === false ? (
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "14px 18px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(251,191,36,0.35)",
+                  background: "rgba(251,191,36,0.08)",
+                  color: "#fcd34d",
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}>
+                  <span style={{ fontSize: 18 }}>⚠️</span>
+                  <span>
+                    To get AI recommendations, set <code style={{ background: "rgba(251,191,36,0.15)", borderRadius: 4, padding: "1px 5px", fontFamily: "monospace" }}>OPENAI_API_KEY</code> in your <code style={{ background: "rgba(251,191,36,0.15)", borderRadius: 4, padding: "1px 5px", fontFamily: "monospace" }}>.env.local</code> file.
+                  </span>
                 </div>
-              </div>
+              ) : (
+              <button
+                onClick={onGenerateRecommendations}
+                disabled={aiSuggestionsLoading || selectedMissing.length === 0}
+                className={`pm-reco-btn${aiSuggestionsLoading ? " loading" : selectedMissing.length > 0 ? " active" : ""}`}
+              >
+                {aiSuggestionsLoading ? (
+                  <>
+                    <span className="pm-spin" style={{ fontSize: 18 }}>⟳</span>
+                    <span>Analyzing your projects…</span>
+                    <span style={{ fontSize: 12, color: "#c4b5fd", fontWeight: 600 }}>this may take a moment</span>
+                  </>
+                ) : selectedMissing.length > 0 ? (
+                  <>
+                    <span style={{ fontSize: 18 }}>✨</span>
+                    <span>Generate Recommendations</span>
+                    <span className="pm-reco-count">{selectedMissing.length} skill{selectedMissing.length !== 1 ? "s" : ""}</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ opacity: 0.45 }}>✨</span>
+                    <span>Select skills above to get recommendations</span>
+                  </>
+                )}
+              </button>
+              )}
             </div>
           )}
 
@@ -744,8 +737,183 @@ export default function UploadPage() {
               );
             })()}
           </div>
+          {/* ✨ AI Skill Recommendations – shown when available */}
+          {(aiSuggestions || aiSuggestionsLoading) && (() => {
+            // Reusable plan card body
+            const PlanBody = ({ plan }: { plan: any }) => (
+              <>
+                {plan?.existingProjectAnalysis && (
+                  <div style={{ marginBottom: 14, padding: "14px 16px", borderRadius: 10, background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
+                    <div style={{ fontWeight: 800, color: "#e6eef8", fontSize: 13, marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                      {plan.existingProjectAnalysis.canBeIntegrated ? "✅" : "❌"} Existing Project Analysis
+                    </div>
+                    <div style={{ color: "rgba(230,238,248,0.8)", fontSize: 13, lineHeight: 1.6, marginBottom: 6 }}>
+                      {plan.existingProjectAnalysis.reasoning}
+                    </div>
+                    {plan.existingProjectAnalysis.enhancementSuggestions?.length > 0 && (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ fontWeight: 700, color: "rgba(230,238,248,0.55)", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Enhancement Suggestions</div>
+                        {plan.existingProjectAnalysis.enhancementSuggestions.map((enh: any, i: number) => (
+                          <div key={i} style={{ padding: "11px 13px", borderRadius: 8, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", marginBottom: 7 }}>
+                            <div style={{ fontWeight: 800, color: "#86efac", fontSize: 13, marginBottom: 4 }}>📦 {enh.targetProject}</div>
+                            <div style={{ color: "rgba(230,238,248,0.85)", fontSize: 13, marginBottom: 5 }}><strong>Enhancement:</strong> {enh.enhancement}</div>
+                            <div style={{ color: "rgba(230,238,248,0.7)", fontSize: 12, marginBottom: 4 }}>{enh.implementation}</div>
+                            <div style={{ display: "flex", gap: 12, marginTop: 5, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 11, color: "rgba(230,238,248,0.55)" }}>💡 {enh.skillDemonstration}</span>
+                              {enh.estimatedEffort && <span style={{ fontSize: 11, color: "#86efac", fontWeight: 700 }}>⏱️ {enh.estimatedEffort}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {plan?.newProjectIdeas?.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, color: "rgba(230,238,248,0.55)", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>New Project Ideas</div>
+                    <div style={{ display: "grid", gap: 9 }}>
+                      {plan.newProjectIdeas.map((proj: any, i: number) => (
+                        <div key={i} style={{ padding: "11px 13px", borderRadius: 10, background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)" }}>
+                          <div style={{ fontWeight: 800, color: "#a78bfa", fontSize: 14, marginBottom: 3 }}>{proj.name}</div>
+                          <div style={{ color: "rgba(230,238,248,0.7)", fontSize: 13, marginBottom: 5 }}>{proj.description}</div>
+                          {proj.keyFeatures?.length > 0 && (
+                            <ul style={{ margin: "0 0 6px", paddingLeft: 16, fontSize: 12, color: "rgba(230,238,248,0.7)" }}>
+                              {proj.keyFeatures.map((f: string, fi: number) => <li key={fi}>{f}</li>)}
+                            </ul>
+                          )}
+                          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                            {proj.skillFocus && <span style={{ fontSize: 11, color: "#c084fc", fontWeight: 700 }}>🎯 {proj.skillFocus}</span>}
+                            {proj.estimatedTime && <span style={{ fontSize: 11, color: "rgba(230,238,248,0.5)" }}>⏱️ {proj.estimatedTime}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {plan?.implementationGuidance && Object.keys(plan.implementationGuidance).some((k) => (plan.implementationGuidance[k]?.length ?? 0) > 0) && (
+                  <div style={{ padding: "13px 15px", borderRadius: 10, background: "rgba(168,85,247,0.07)", border: "1px dashed rgba(168,85,247,0.28)" }}>
+                    <div style={{ fontWeight: 700, color: "rgba(230,238,248,0.55)", fontSize: 11, textTransform: "uppercase", letterSpacing: 1, marginBottom: 9 }}>📋 Implementation Guidance</div>
+                    <div style={{ display: "grid", gap: 9 }}>
+                      {plan.implementationGuidance.technologies?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, color: "rgba(230,238,248,0.5)", marginBottom: 4 }}>Technologies:</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                            {plan.implementationGuidance.technologies.map((tech: string, i: number) => (
+                              <span key={i} style={{ padding: "2px 8px", borderRadius: 999, background: "rgba(139,92,246,0.15)", border: "1px solid rgba(139,92,246,0.3)", color: "#a78bfa", fontSize: 11, fontWeight: 700 }}>{tech}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {plan.implementationGuidance.architecturePatterns?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, color: "rgba(230,238,248,0.5)", marginBottom: 3 }}>Architecture Patterns:</div>
+                          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "rgba(230,238,248,0.7)" }}>
+                            {plan.implementationGuidance.architecturePatterns.map((p: string, i: number) => <li key={i}>{p}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {plan.implementationGuidance.measurableOutcomes?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, color: "rgba(230,238,248,0.5)", marginBottom: 3 }}>Measurable Outcomes:</div>
+                          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "rgba(230,238,248,0.7)" }}>
+                            {plan.implementationGuidance.measurableOutcomes.map((o: string, i: number) => <li key={i}>{o}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                      {plan.implementationGuidance.visibilityTips?.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 11, color: "rgba(230,238,248,0.5)", marginBottom: 3 }}>GitHub Visibility Tips:</div>
+                          <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "rgba(230,238,248,0.7)" }}>
+                            {plan.implementationGuidance.visibilityTips.map((tip: string, i: number) => <li key={i}>{tip}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+
+            const priorityBadge = (plan: any) => {
+              if (!plan?.priorityRecommendation) return null;
+              const isEnhance = plan.priorityRecommendation.startsWith("existing");
+              return (
+                <span style={{ fontSize: 11, padding: "3px 9px", borderRadius: 999, background: isEnhance ? "rgba(34,197,94,0.15)" : "rgba(139,92,246,0.2)", border: `1px solid ${isEnhance ? "rgba(34,197,94,0.3)" : "rgba(139,92,246,0.4)"}`, color: isEnhance ? "#86efac" : "#a78bfa", fontWeight: 700 }}>
+                  {isEnhance ? "🔧 Enhance Existing" : "🚀 New Project"}
+                </span>
+              );
+            };
+
+            return (
+            <div style={{ marginTop: 20 }}>
+              {/* section header */}
+              <div style={{ fontWeight: 900, color: "#c084fc", marginBottom: 14, fontSize: 17, display: "flex", alignItems: "center", gap: 10 }}>
+                ✨ AI Skill Recommendations
+                <span style={{ fontSize: 12, color: "rgba(230,238,248,0.4)", fontWeight: 500 }}>powered by GPT-4o mini</span>
+                {aiSuggestions && aiSuggestions.groups.length > 0 && (
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "rgba(168,85,247,0.15)", border: "1px solid rgba(168,85,247,0.3)", color: "#c084fc", fontWeight: 700 }}>
+                    {aiSuggestions.groups.length} group{aiSuggestions.groups.length !== 1 ? "s" : ""} · {aiSuggestions.individual.length} individual
+                  </span>
+                )}
+              </div>
+
+              {/* loading */}
+              {aiSuggestionsLoading && !aiSuggestions && (
+                <div style={{ color: "#a78bfa", fontSize: 14, padding: "16px 18px", borderRadius: 12, background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.2)" }}>
+                  <span className="pm-spin" style={{ marginRight: 8 }}>⟳</span>
+                  Grouping related skills and generating personalized recommendations…
+                </div>
+              )}
+
+              <div style={{ display: "grid", gap: 16 }}>
+                {/* ── Grouped recommendations ─────────────────────── */}
+                {aiSuggestions?.groups.map((g: any, gi: number) => (
+                  <div key={`group-${gi}`} style={{ padding: "20px 22px", borderRadius: 14, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.35)" }}>
+                    {/* group header */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 7 }}>
+                          <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 999, background: "rgba(99,102,241,0.22)", border: "1px solid rgba(99,102,241,0.45)", color: "#a5b4fc", fontWeight: 800, letterSpacing: 0.5 }}>
+                            🔗 GROUPED · {g.skills?.length} skills
+                          </span>
+                          {priorityBadge(g.plan)}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {(g.skills ?? []).map((s: string) => (
+                            <span key={s} style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(99,102,241,0.18)", border: "1px solid rgba(99,102,241,0.4)", color: "#c7d2fe", fontWeight: 800, fontSize: 12 }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {g.plan && <PlanBody plan={g.plan} />}
+                  </div>
+                ))}
+
+                {/* ── Individual recommendations ───────────────────── */}
+                {(aiSuggestions?.individual?.length ?? 0) > 0 && (aiSuggestions?.groups?.length ?? 0) > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
+                    <div style={{ height: 1, flex: 1, background: "rgba(139,92,246,0.15)" }} />
+                    <span style={{ fontSize: 11, color: "rgba(230,238,248,0.35)", fontWeight: 600 }}>INDIVIDUAL</span>
+                    <div style={{ height: 1, flex: 1, background: "rgba(139,92,246,0.15)" }} />
+                  </div>
+                )}
+
+                {aiSuggestions?.individual.map((item: any, ii: number) => (
+                  <div key={`ind-${ii}`} style={{ padding: "20px 22px", borderRadius: 14, background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.32)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+                      <span style={{ padding: "4px 12px", borderRadius: 999, background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.45)", color: "#d8b4fe", fontWeight: 900, fontSize: 13 }}>{item.skill}</span>
+                      {priorityBadge(item.plan)}
+                    </div>
+                    {item.plan && <PlanBody plan={item.plan} />}
+                  </div>
+                ))}
+              </div>
+            </div>
+            );
+          })()}
         </div>
-        </ParallaxSection>
       )}
     </div>
 
