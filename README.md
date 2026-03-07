@@ -2,6 +2,8 @@
 
 **ProofMap** is a resume skill validation tool that cross-references the skills listed on your resume against your actual GitHub repositories. It gives you a skill reality score, identifies proof gaps, and generates actionable goals to help you back up your claims with real code.
 
+> 🚀 **Open source & self-hostable** — check out the project at [github.com/snehagrian/proofmap](https://github.com/snehagrian/proofmap) and run your own instance.
+
 ---
 
 ## How It Works
@@ -96,7 +98,7 @@ src/
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/proofmap.git
+git clone https://github.com/snehagrian/proofmap.git
 cd proofmap
 npm install
 ```
@@ -113,9 +115,10 @@ OPENAI_API_KEY=your_openai_api_key
 ```
 
 **AI Features (Optional):**
-- If `OPENAI_API_KEY` is configured, the app will automatically generate personalized skill development plans for weak skills (score < 25)
-- AI suggestions include project ideas, key patterns to showcase, estimated build time, and visibility tips
-- If the API key is not set, the app works perfectly fine with just GitHub-based analysis
+- If `OPENAI_API_KEY` is configured, the app enables the "Generate Recommendations" button for weak skills (score < 25)
+- If the key is **not set**, the app automatically detects this on page load and shows a clear setup message instead of the button
+- AI suggestions group related skills (e.g. Docker + CI/CD) into combined project plans, with individual plans for ungrouped skills
+- The app works perfectly fine without the key — GitHub-based analysis is always available
 - Great for showcasing: deploy without AI for free, let developers enable it locally
 
 ### Running Locally
@@ -168,15 +171,25 @@ Scans a GitHub user's repositories and validates skills extracted from resume te
 }
 ```
 
+### `GET /api/ai-suggestions`
+
+Checks whether `OPENAI_API_KEY` is configured on the server. Called automatically on page load.
+
+**Response:**
+
+```json
+{ "hasKey": true }
+```
+
 ### `POST /api/ai-suggestions` (Optional)
 
-Generates AI-powered skill recommendations with existing project analysis. Only works if `OPENAI_API_KEY` is configured.
+Generates AI-powered skill recommendations with grouped project plans. Requires `OPENAI_API_KEY`.
 
 **Request body:**
 
 ```json
 {
-  "skills": ["Docker", "CI/CD"],
+  "skills": ["Docker", "CI/CD", "React"],
   "githubUsername": "octocat",
   "breakdown": [...],
   "existingRepos": ["backend-api", "frontend-app"]
@@ -185,42 +198,45 @@ Generates AI-powered skill recommendations with existing project analysis. Only 
 
 **Response:**
 
+Related skills are intelligently grouped into combined plans; remaining skills get individual plans.
+
 ```json
 {
-  "suggestions": [
+  "groups": [
     {
-      "skill": "Docker",
+      "type": "group",
+      "skills": ["Docker", "CI/CD"],
+      "groupName": "Docker + CI/CD",
       "plan": {
         "existingProjectAnalysis": {
           "canBeIntegrated": true,
-          "reasoning": "Your backend-api project can benefit from containerization",
+          "reasoning": "Your backend-api project is a good fit for containerisation and automation",
           "enhancementSuggestions": [
             {
               "targetProject": "backend-api",
-              "enhancement": "Add multi-stage Dockerfile with production optimizations",
-              "implementation": "Create Dockerfile with build and runtime stages...",
-              "skillDemonstration": "Shows production-ready containerization skills",
+              "enhancement": "Add multi-stage Dockerfile and GitHub Actions workflow",
+              "implementation": "Create Dockerfile with build/runtime stages, add .github/workflows/ci.yml",
+              "skillDemonstration": "Shows production-ready Docker + CI/CD in one repo",
               "estimatedEffort": "4-6 hours"
             }
           ]
         },
-        "newProjectIdeas": [
-          {
-            "name": "Microservice Template",
-            "description": "Production-ready containerized microservice boilerplate",
-            "keyFeatures": ["Multi-stage builds", "Health checks", "Security scanning"],
-            "skillFocus": "Demonstrates Docker best practices and orchestration",
-            "estimatedTime": "1-2 weekends"
-          }
-        ],
+        "newProjectIdeas": [],
         "implementationGuidance": {
-          "technologies": ["Docker", "docker-compose", "Docker Scout"],
-          "architecturePatterns": ["Multi-stage builds", "Layer caching"],
-          "measurableOutcomes": ["Image size < 100MB", "Build time < 2min"],
-          "visibilityTips": ["Add Dockerfile to repo root", "Document in README"]
+          "technologies": ["Docker", "GitHub Actions", "docker-compose"],
+          "architecturePatterns": ["Multi-stage builds", "Automated testing pipeline"],
+          "measurableOutcomes": ["Image size < 100MB", "CI runs on every PR"],
+          "visibilityTips": ["Add badges to README", "Pin the repo"]
         },
         "priorityRecommendation": "existing-enhancement"
       }
+    }
+  ],
+  "individual": [
+    {
+      "type": "individual",
+      "skill": "React",
+      "plan": { "..." : "same plan shape as above" }
     }
   ]
 }
@@ -232,6 +248,8 @@ Generates AI-powered skill recommendations with existing project analysis. Only 
 
 Deploy instantly on [Vercel](https://vercel.com/new):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/snehagrian/proofmap)
 
-Set the `GITHUB_TOKEN` environment variable in your Vercel project settings to avoid GitHub API rate limits.
+Set the following environment variables in your Vercel project settings:
+- `GITHUB_TOKEN` — GitHub Personal Access Token (avoids API rate limits)
+- `OPENAI_API_KEY` — _(optional)_ enables AI-powered recommendations

@@ -4,6 +4,10 @@ import OpenAI from "openai";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+export async function GET() {
+  return NextResponse.json({ hasKey: !!process.env.OPENAI_API_KEY });
+}
+
 const PLAN_SCHEMA = `{
   "existingProjectAnalysis": {
     "canBeIntegrated": bool,
