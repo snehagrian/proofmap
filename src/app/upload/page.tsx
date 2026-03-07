@@ -836,7 +836,7 @@ export default function UploadPage() {
                 ))}
 
                 {/* ── Individual recommendations ───────────────────── */}
-                {aiSuggestions?.individual.length > 0 && aiSuggestions?.groups.length > 0 && (
+                {(aiSuggestions?.individual?.length ?? 0) > 0 && (aiSuggestions?.groups?.length ?? 0) > 0 && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0" }}>
                     <div style={{ height: 1, flex: 1, background: "rgba(139,92,246,0.15)" }} />
                     <span style={{ fontSize: 11, color: "rgba(230,238,248,0.35)", fontWeight: 600 }}>INDIVIDUAL</span>
